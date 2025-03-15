@@ -1,0 +1,186 @@
+{
+  "name": "codestyletest",
+  "displayName": "codestyletest",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+        {
+            "id": "java",
+            "aliases": ["Java"],
+            "extensions": [".java"],
+            "configuration": "./language-configuration.json"
+        }
+    ],
+    "commands": [
+      {
+        "command": "codestyletest.format",
+        "title": "Format Current Java File",
+        "category": "CodeStyleTest"
+      }
+    ],
+    "configuration": [
+      {
+        "title": "Miscellaneous",
+        "properties": {
+          "codestyletest.braceStyle": {
+            "type": "string",
+            "enum": ["break", "attach"],
+            "enumItemLabels": ["Break", "Attach"],
+            "default": "break",
+            "description": "Brace style for blocks"
+          },
+          "codestyletest.spaceAroundOperators": {
+            "type": "boolean",
+            "default": true,
+            "description": "Insert spaces around operators"
+          },
+          "codestyletest.maxLineLength": {
+            "type": "number",
+            "default": 100,
+            "description": "Maximum line length"
+          }
+        }
+      },
+      {
+        "title": "Modifier Order",
+        "properties": {
+          "codestyletest.modifierOrder.class": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["public", "protected", "private", "static", "abstract", "final"]
+            },
+            "uniqueItems": true,
+            "default": ["public", "protected", "private", "abstract", "static", "final"],
+            "description": "Order of modifiers for classes"
+          },
+          "codestyletest.modifierOrder.method": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["public", "protected", "private", "static", "abstract", "final", "synchronized", "transient", "volatile"]
+            },
+            "uniqueItems": true,
+            "default": ["public", "protected", "private", "abstract", "static", "final", "synchronized"],
+            "description": "Order of modifiers for methods"
+          }
+        }
+      },
+      {
+        "title": "Naming Conventions",
+        "properties": {
+          "codestyletest.namingConventions.class": {
+            "type": "string",
+            "default": "pascalcase",
+            "description": "Naming convention for classes (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
+          },
+          "codestyletest.namingConventions.method": {
+            "type": "string",
+            "default": "camelcase",
+            "description": "Naming convention for methods (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
+          },
+          "codestyletest.namingConventions.variable": {
+            "type": "string",
+            "default": "camelcase",
+            "description": "Naming convention for variables (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
+          },
+          "codestyletest.namingConventions.constant": {
+            "type": "string",
+            "default": "uppercase",
+            "description": "Naming convention for constants (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
+          },
+          "codestyletest.namingConventions.parameter": {
+            "type": "string",
+            "default": "camelcase",
+            "description": "Naming convention for parameters (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
+          }
+        }
+      },
+      {
+        "title": "imports",
+        "properties": {
+          "codestyletest.imports.order": {
+            "type": "string",
+            "enum": ["sort", "preserve"],
+            "enumItemLabels": ["Sort", "Preserve"],
+            "default": "preserve",
+            "description": "Order of imports"
+          },
+          "codestyletest.imports.merge": {
+            "type": "boolean",
+            "default": false,
+            "description": "Merge imports"
+          }
+        }
+      },
+      {
+        "title": "Indentation",
+        "codestyletest.indents.size": {
+          "type": "number",
+          "default": 4,
+          "description": "Indent size"
+        },
+        "codestyletest.indents.type": {
+          "type": "string",
+          "enum": ["spaces", "tabs"],
+          "enumItemLabels": ["Spaces", "Tabs"],
+          "default": "spaces",
+          "description": "Indent type"
+        },
+        "codestyletest.indents.switchCaseLabels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Indent switch case labels"
+        }
+      },
+      {
+        "title": "Alignments",
+        "properties": {
+          "codestyletest.alignments.afterOpenBracket": {
+            "type": "string",
+            "enum": ["none", "align", "dont_align", "always_break", "block_indent"],
+            "enumItemLabels": ["None", "Align", "Don't Align", "Always Break", "Block Indent"],
+            "default": "none",
+            "description": "Alignment after open bracket"
+          },
+          "codestyletest.alignments.parametersBeforeAlignment": {
+            "type": "number",
+            "default": 2,
+            "description": "Parameters before alignment (Works in *Align* and *Don't Align* modes)"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.98.0",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

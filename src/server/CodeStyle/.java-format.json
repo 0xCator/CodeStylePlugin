@@ -1,0 +1,27 @@
+{
+    "brace_style": "attach",  
+    "space_around_operator": true,
+    "max_line_length": 80,
+    "class_modifier_order": ["public", "protected", "private", "abstract", "static", "final"],
+    "method_modifier_order": ["public", "protected", "private", "abstract", "static", "final", "synchronized"],
+    "naming_conventions": {
+        "class": "[A-Z][a-zA-Z0-9]*",
+        "method": "camelcase",
+        "variable": "[a-z][a-zA-Z0-9]*",
+        "parameter": "camelcase",
+        "constant": "uppercase"
+    },
+    "imports": {
+        "order": "sort",
+        "merge": true
+    },
+    "indents": {
+        "size": 4,
+        "type": "spaces",
+        "switch_case_labels": "indent"
+    },
+    "aligns" : {
+        "after_open_bracket": "align",
+        "parameters_before_align": 2
+    }
+}
