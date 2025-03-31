@@ -106,7 +106,7 @@
         }
       },
       {
-        "title": "imports",
+        "title": "Imports",
         "properties": {
           "codestyletest.imports.order": {
             "type": "string",
@@ -124,35 +124,37 @@
       },
       {
         "title": "Indentation",
-        "codestyletest.indents.size": {
-          "type": "number",
-          "default": 4,
-          "description": "Indent size"
-        },
-        "codestyletest.indents.type": {
-          "type": "string",
-          "enum": ["spaces", "tabs"],
-          "enumItemLabels": ["Spaces", "Tabs"],
-          "default": "spaces",
-          "description": "Indent type"
-        },
-        "codestyletest.indents.switchCaseLabels": {
-          "type": "boolean",
-          "default": true,
-          "description": "Indent switch case labels"
+        "properties": {
+          "codestyletest.indents.size": {
+            "type": "number",
+            "default": 4,
+            "description": "Indent size"
+          },
+          "codestyletest.indents.type": {
+            "type": "string",
+            "enum": ["spaces", "tabs"],
+            "enumItemLabels": ["Spaces", "Tabs"],
+            "default": "spaces",
+            "description": "Indent type"
+          },
+          "codestyletest.indents.switchCaseLabels": {
+            "type": "boolean",
+            "default": true,
+            "description": "Indent switch case labels"
+          }
         }
       },
       {
         "title": "Alignments",
         "properties": {
-          "codestyletest.alignments.afterOpenBracket": {
+          "codestyletest.aligns.afterOpenBracket": {
             "type": "string",
             "enum": ["none", "align", "dont_align", "always_break", "block_indent"],
             "enumItemLabels": ["None", "Align", "Don't Align", "Always Break", "Block Indent"],
             "default": "none",
             "description": "Alignment after open bracket"
           },
-          "codestyletest.alignments.parametersBeforeAlignment": {
+          "codestyletest.aligns.parametersBeforeAlignment": {
             "type": "number",
             "default": 2,
             "description": "Parameters before alignment (Works in *Align* and *Don't Align* modes)"

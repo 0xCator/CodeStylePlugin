@@ -1,13 +1,13 @@
-import json
+import logging
 
 class ConfigClass:
-    def __init__(self, config_path):
-        self.config_path = config_path
+    def __init__(self, config_dict):
+        self.config_dict = config_dict
 
         self.default_config()
 
-        if config_path:
-            self.read_config()
+        if config_dict:
+            self.parse_config()
 
     def default_config(self):
         self.brace_style = 'break'
@@ -36,43 +36,18 @@ class ConfigClass:
             'parameters_before_align': 2 # How many parameters before breaking if 'after_open_bracket' is 'align' or 'dont_align'
         }
 
-    def read_config(self):
-        config_json = {}
-        try:
-            with open(self.config_path) as f:
-                config_json = json.load(f)
-        except json.JSONDecodeError:
-            print(f"Error: Invalid JSON format in '{self.config_path}'.")
-            exit(1)
-        except Exception as e:
-            print(f"Error reading config file: {e}.")
-            exit(1)
+    def parse_config(self):
+        self.brace_style = self.config_dict['braceStyle']
+        self.space_around_operator = self.config_dict['spaceAroundOperators']
+        self.max_line_length = self.config_dict['maxLineLength']
+        self.class_modifier_order = self.config_dict['modifierOrder']['class']
+        self.method_modifier_order = self.config_dict['modifierOrder']['method']
+        self.naming_conventions = self.config_dict['namingConventions']
+        self.imports = self.config_dict['imports']
 
-        
-        self.brace_style = config_json.get('brace_style', self.brace_style)
-        self.space_around_operator = config_json.get('space_around_operator', self.space_around_operator)
-        self.max_line_length = config_json.get('max_line_length', self.max_line_length)
-        self.class_modifier_order = config_json.get('class_modifier_order', self.class_modifier_order)
-        self.method_modifier_order = config_json.get('method_modifier_order', self.method_modifier_order)
-        self.naming_conventions = config_json.get('naming_conventions', self.naming_conventions)
-        self.imports = config_json.get('imports', self.imports)
-        self.indents = config_json.get('indents', self.indents)
-        self.aligns = config_json.get('aligns', self.aligns)
+        self.indents['size'] = self.config_dict['indents']['size']
+        self.indents['type'] = self.config_dict['indents']['type']
+        self.indents['switch_case_labels'] = self.config_dict['indents']['switchCaseLabels']
 
-    # Kept for future use
-    def save_config(self):
-        config = {
-            'indent_size': self.indent_size,
-            'brace_style': self.brace_style,
-            'space_around_operator': self.space_around_operator,
-            'max_line_length': self.max_line_length,
-            'class_modifier_order': self.class_modifier_order,
-            'method_modifier_order': self.method_modifier_order,
-            'naming_conventions': self.naming_conventions,
-            'imports': self.imports,
-            'indents': self.indents,
-            'aligns': self.aligns
-        }
-
-        with open(self.config_path, 'w') as f:
-            json.dump(config, f, indent=4)
+        self.aligns['after_open_bracket'] = self.config_dict['aligns']['afterOpenBracket']
+        self.aligns['parameters_before_align'] = self.config_dict['aligns']['parametersBeforeAlignment']

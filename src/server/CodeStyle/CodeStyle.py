@@ -45,8 +45,8 @@ def get_errors(tree, configs):
     errors = error_visitor.find_errors(tree)
     return errors
 
-def start_formatting(code):
-    configs = ConfigClass(None)
+def start_formatting(code, settings=None):
+    configs = ConfigClass(settings)
     code = clean_code(code)
     tree, tokens = parse_java_code(code)
     formatted_code = format_code(tree, tokens, configs)
