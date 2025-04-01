@@ -13,8 +13,13 @@ interface FormatResponse {
 	errors: string[];
 }
 
+interface SmellResponse {
+	smells: string[];
+}
+
 let client: LanguageClient | undefined;
 let diagCollection: vscode.DiagnosticCollection;
+let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
 	const serverCommand = "python";
@@ -38,11 +43,19 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 
 	diagCollection = vscode.languages.createDiagnosticCollection("CodeStyleTest");
 
-	const format = vscode.commands.registerCommand('codestyletest.format', async () => {
-		formatCode();
-	});
+	// Register the command to format code
+	context.subscriptions.push(
+		vscode.commands.registerCommand('codestyletest.format', () => {
+			formatCode();
+		})
+	);
 
-	context.subscriptions.push(format);
+	// Register the command to analyze smells
+	context.subscriptions.push(
+		vscode.commands.registerCommand('codestyletest.analyze', () => {
+			analyzeCode();
+		})
+	);
 
 	// Register listener for configuration changes
     context.subscriptions.push(
@@ -125,6 +138,49 @@ function extractError(errorMessage: string) {
 	const identifier = match[4];
 
 	return { line, column, identifier };
+}
+
+async function analyzeCode() : Promise<void> {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		vscode.window.showErrorMessage("No active text editor found");
+		return;
+	}
+
+	const document = editor.document;
+	if (document.languageId !== "java") {
+		vscode.window.showErrorMessage("Active document is not a Java file");
+		return;
+	}
+
+	const text = document.getText();
+	const fileName = document.fileName;
+
+	try {
+		const response = await client?.sendRequest("workspace/executeCommand", {
+			command: "analyze_smells",
+			arguments: [text]
+		});
+
+		if (!response)
+			throw new Error("Error: No response from server");
+
+		const smellResponse = response as SmellResponse;
+		const smells: string[] = smellResponse.smells;
+		const output = smells.join(", ");
+
+		if (output) {
+			vscode.window.showInformationMessage("Analysis complete");
+			outputChannel = vscode.window.createOutputChannel("Code Smells");
+			outputChannel.appendLine(fileName + ": " + output);
+			outputChannel.show();
+		} else {
+			vscode.window.showInformationMessage("Analysis complete: No code smells found");
+		}
+	}
+	catch (e) {
+		vscode.window.showErrorMessage(`${e}`);
+	}
 }
 
 async function updateServerConfiguration() {

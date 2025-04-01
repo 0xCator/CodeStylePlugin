@@ -25,6 +25,11 @@
         "command": "codestyletest.format",
         "title": "Format Current Java File",
         "category": "CodeStyleTest"
+      },
+      {
+        "command": "codestyletest.analyze",
+        "title": "Analyze Current Java File for Code Smells",
+        "category": "CodeStyleTest"
       }
     ],
     "configuration": [

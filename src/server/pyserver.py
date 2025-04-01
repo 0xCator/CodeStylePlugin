@@ -1,17 +1,7 @@
 from pygls.server import LanguageServer
-from lsprotocol.types import InitializeParams, DidChangeConfigurationParams, ConfigurationItem
-from CodeStyle.CodeStyle import start_formatting
-
-import logging
-import os
-
-# Configure logging
-logging.basicConfig(
-    filename="server.log",  # Log file name
-    filemode="a",  # Append to the log file
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG  # Change to INFO or WARNING if needed
-)
+from lsprotocol.types import InitializeParams, DidChangeConfigurationParams, WorkDoneProgressCreateParams, WorkDoneProgressBegin, WorkDoneProgressReport, ProgressParams, WorkDoneProgressEnd
+from CodeStyle import CodeStyle
+from CodeSmell import CodeSmell
 
 server = LanguageServer("javaStyleServer", "0.0.1")
 settings = {}
@@ -32,8 +22,25 @@ async def on_config_change(params: DidChangeConfigurationParams):
 @server.command("format_code")
 async def format_code(ls: LanguageServer, params):
     code = params[0]
-    formatted_code, errors = start_formatting(code, settings)
+    formatted_code, errors = CodeStyle.start_formatting(code, settings)
     return {"formatted_code": formatted_code, "errors": errors}
+
+@server.command("analyze_smells")
+async def analyze_smells(ls: LanguageServer, params):
+    token = "analyze_smells"
+    ls.lsp.send_request("window/workDoneProgress/create", WorkDoneProgressCreateParams(token=token))
+
+    ls.send_notification("$/progress", ProgressParams(token=token, value=WorkDoneProgressBegin(title="Analyzing code smells", percentage=0, cancellable=False)))
+
+    def progress_callback(percentage):
+        ls.send_notification("$/progress", ProgressParams(token=token, value=WorkDoneProgressReport(percentage=percentage)))
+
+    code = params[0]
+    smells = await ls.loop.run_in_executor(None, lambda: CodeSmell.start_analysis(code, progress_callback))
+
+    ls.send_notification("$/progress", ProgressParams(token=token, value=WorkDoneProgressEnd(message="Analysis complete")))
+
+    return {"smells": smells}
 
 if __name__ == "__main__":
     server.start_io()
