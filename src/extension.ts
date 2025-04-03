@@ -46,14 +46,70 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 	// Register the command to format code
 	context.subscriptions.push(
 		vscode.commands.registerCommand('codestyletest.format', () => {
-			formatCode();
+			const choice = vscode.window.showQuickPick(
+				["Format current file", "Format all Java files"],
+				{ placeHolder: "Choose an option" }
+			);
+
+			if (!choice) {
+				vscode.window.showErrorMessage("No option selected");
+				return;
+			}
+
+			choice.then((selectedOption) => {
+				switch (selectedOption) {
+					case "Format current file":
+						const document = getCurrentDocument();
+						if (document) {
+							formatCode(document);
+						}
+					break;
+					case "Format all Java files":
+						getAllJavaFiles().then((javaFiles) => {
+							javaFiles.forEach((fileUri) => {
+								vscode.workspace.openTextDocument(fileUri).then((doc) => {
+									formatCode(doc);
+								});
+							});
+						});
+					break;
+				}
+			})
 		})
 	);
 
 	// Register the command to analyze smells
 	context.subscriptions.push(
 		vscode.commands.registerCommand('codestyletest.analyze', () => {
-			analyzeCode();
+			const choice = vscode.window.showQuickPick(
+				["Analyze current file", "Analyze all Java files"],
+				{ placeHolder: "Choose an option" }
+			);
+
+			if (!choice) {
+				vscode.window.showErrorMessage("No option selected");
+				return;
+			}
+
+			choice.then((selectedOption) => {
+				switch (selectedOption) {
+					case "Analyze current file":
+						const document = getCurrentDocument();
+						if (document) {
+							analyzeCode(document);
+						}
+					break;
+					case "Analyze all Java files":
+						getAllJavaFiles().then((javaFiles) => {
+							javaFiles.forEach((fileUri) => {
+								vscode.workspace.openTextDocument(fileUri).then((doc) => {
+									analyzeCode(doc);
+								});
+							});
+						});
+					break;
+				}
+			})
 		})
 	);
 
@@ -67,19 +123,32 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
     );
 }
 
-async function formatCode() : Promise<void> {
+function getCurrentDocument() : vscode.TextDocument | undefined {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
-		vscode.window.showErrorMessage("No active text editor found");
+		vscode.window.showErrorMessage("No active text editor found.");
 		return;
 	}
 
 	const document = editor.document;
 	if (document.languageId !== "java") {
-		vscode.window.showErrorMessage("Active document is not a Java file");
+		vscode.window.showErrorMessage("Active document is not a Java file.");
 		return;
 	}
+	return document;
+}
 
+async function getAllJavaFiles() : Promise<vscode.Uri[]> {
+	const javaFiles = await vscode.workspace.findFiles("**/*.java");
+	if (javaFiles.length === 0) {
+		vscode.window.showInformationMessage("No Java files found in the workspace.");
+		return [];
+	}
+
+	return javaFiles;
+}
+
+async function formatCode(document: vscode.TextDocument) : Promise<void> {
 	const text = document.getText();
 
 	try {
@@ -98,6 +167,7 @@ async function formatCode() : Promise<void> {
 		const errors: string[] = formatResponse.errors;
 
 		if (formattedCode != null) {
+			const editor = await vscode.window.showTextDocument(document, {preview: false});
 			editor.edit(editBuilder => {
 				editBuilder.replace(new vscode.Range(0, 0, document.lineCount, 0), formattedCode);
 			}
@@ -140,19 +210,7 @@ function extractError(errorMessage: string) {
 	return { line, column, identifier };
 }
 
-async function analyzeCode() : Promise<void> {
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		vscode.window.showErrorMessage("No active text editor found");
-		return;
-	}
-
-	const document = editor.document;
-	if (document.languageId !== "java") {
-		vscode.window.showErrorMessage("Active document is not a Java file");
-		return;
-	}
-
+async function analyzeCode(document: vscode.TextDocument) : Promise<void> {
 	const text = document.getText();
 	const fileName = document.fileName;
 
@@ -170,12 +228,14 @@ async function analyzeCode() : Promise<void> {
 		const output = smells.join(", ");
 
 		if (output) {
-			vscode.window.showInformationMessage("Analysis complete");
-			outputChannel = vscode.window.createOutputChannel("Code Smells");
+			vscode.window.showInformationMessage("Analysis complete with code smells found in " + fileName);
+			if (!outputChannel) {
+				outputChannel = vscode.window.createOutputChannel("Code Smells");
+			}
 			outputChannel.appendLine(fileName + ": " + output);
 			outputChannel.show();
 		} else {
-			vscode.window.showInformationMessage("Analysis complete: No code smells found");
+			vscode.window.showInformationMessage("Analysis complete: No code smells found in " + fileName);
 		}
 	}
 	catch (e) {

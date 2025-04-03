@@ -38,7 +38,7 @@ async def analyze_smells(ls: LanguageServer, params):
     code = params[0]
     smells = await ls.loop.run_in_executor(None, lambda: CodeSmell.start_analysis(code, progress_callback))
 
-    ls.send_notification("$/progress", ProgressParams(token=token, value=WorkDoneProgressEnd(message="Analysis complete")))
+    ls.send_notification("$/progress", ProgressParams(token=token, value=WorkDoneProgressEnd()))
 
     return {"smells": smells}
 
