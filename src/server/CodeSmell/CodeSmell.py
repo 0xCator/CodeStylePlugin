@@ -3,7 +3,7 @@ import CodeSmell.modelrunner
 import numpy as np
 import os
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model\\")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
 
 def start_analysis(code, progress_callback=None):
     total_smells = []
@@ -18,27 +18,47 @@ def start_analysis(code, progress_callback=None):
     total_progress = len(methods) + len(prototypes) + 1
     current_progress = 0
 
-    total_smells.append(model.run_model(formatted_code))
-    current_progress += 1
-
-    if progress_callback:
-        progress_callback(int(current_progress / total_progress * 100))
-
-    for method in methods:
-        total_smells.append(model.run_model(method))
+    try:
+        total_smells.append(model.run_model(formatted_code))
         current_progress += 1
 
         if progress_callback:
-            progress_callback(int(current_progress / total_progress * 100))
+            try:
+                progress_callback(int(current_progress / total_progress * 100))
+            except Exception as e:
+                if str(e) == "Analysis cancelled":
+                    model.cancel()  # Signal model to stop
+                    return []  # Return empty list if cancelled
 
-    for prototype in prototypes:
-        total_smells.append(model.run_model(prototype))
-        current_progress += 1
+        for method in methods:
+            total_smells.append(model.run_model(method))
+            current_progress += 1
 
-        if progress_callback:
-            progress_callback(int(current_progress / total_progress * 100))
-    
-    total_smells = np.concatenate(total_smells)
-    total_smells = np.unique(total_smells)
+            if progress_callback:
+                try:
+                    progress_callback(int(current_progress / total_progress * 100))
+                except Exception as e:
+                    if str(e) == "Analysis cancelled":
+                        model.cancel()  # Signal model to stop
+                        return []  # Return empty list if cancelled
 
-    return total_smells.tolist()
+        for prototype in prototypes:
+            total_smells.append(model.run_model(prototype))
+            current_progress += 1
+
+            if progress_callback:
+                try:
+                    progress_callback(int(current_progress / total_progress * 100))
+                except Exception as e:
+                    if str(e) == "Analysis cancelled":
+                        model.cancel()  # Signal model to stop
+                        return []  # Return empty list if cancelled
+        
+        total_smells = np.concatenate(total_smells)
+        total_smells = np.unique(total_smells)
+
+        return total_smells.tolist()
+    except Exception as e:
+        if str(e) == "Analysis cancelled":
+            return []
+        raise e

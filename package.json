@@ -13,12 +13,16 @@
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
-        {
-            "id": "java",
-            "aliases": ["Java"],
-            "extensions": [".java"],
-            "configuration": "./language-configuration.json"
-        }
+      {
+        "id": "java",
+        "aliases": [
+          "Java"
+        ],
+        "extensions": [
+          ".java"
+        ],
+        "configuration": "./language-configuration.json"
+      }
     ],
     "commands": [
       {
@@ -38,8 +42,14 @@
         "properties": {
           "codestyletest.braceStyle": {
             "type": "string",
-            "enum": ["break", "attach"],
-            "enumItemLabels": ["Break", "Attach"],
+            "enum": [
+              "break",
+              "attach"
+            ],
+            "enumItemLabels": [
+              "Break",
+              "Attach"
+            ],
             "default": "break",
             "description": "Brace style for blocks"
           },
@@ -62,20 +72,52 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["public", "protected", "private", "static", "abstract", "final"]
+              "enum": [
+                "public",
+                "protected",
+                "private",
+                "static",
+                "abstract",
+                "final"
+              ]
             },
             "uniqueItems": true,
-            "default": ["public", "protected", "private", "abstract", "static", "final"],
+            "default": [
+              "public",
+              "protected",
+              "private",
+              "abstract",
+              "static",
+              "final"
+            ],
             "description": "Order of modifiers for classes"
           },
           "codestyletest.modifierOrder.method": {
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["public", "protected", "private", "static", "abstract", "final", "synchronized", "transient", "volatile"]
+              "enum": [
+                "public",
+                "protected",
+                "private",
+                "static",
+                "abstract",
+                "final",
+                "synchronized",
+                "transient",
+                "volatile"
+              ]
             },
             "uniqueItems": true,
-            "default": ["public", "protected", "private", "abstract", "static", "final", "synchronized"],
+            "default": [
+              "public",
+              "protected",
+              "private",
+              "abstract",
+              "static",
+              "final",
+              "synchronized"
+            ],
             "description": "Order of modifiers for methods"
           }
         }
@@ -115,8 +157,14 @@
         "properties": {
           "codestyletest.imports.order": {
             "type": "string",
-            "enum": ["sort", "preserve"],
-            "enumItemLabels": ["Sort", "Preserve"],
+            "enum": [
+              "sort",
+              "preserve"
+            ],
+            "enumItemLabels": [
+              "Sort",
+              "Preserve"
+            ],
             "default": "preserve",
             "description": "Order of imports"
           },
@@ -137,8 +185,14 @@
           },
           "codestyletest.indents.type": {
             "type": "string",
-            "enum": ["spaces", "tabs"],
-            "enumItemLabels": ["Spaces", "Tabs"],
+            "enum": [
+              "spaces",
+              "tabs"
+            ],
+            "enumItemLabels": [
+              "Spaces",
+              "Tabs"
+            ],
             "default": "spaces",
             "description": "Indent type"
           },
@@ -154,8 +208,20 @@
         "properties": {
           "codestyletest.aligns.afterOpenBracket": {
             "type": "string",
-            "enum": ["none", "align", "dont_align", "always_break", "block_indent"],
-            "enumItemLabels": ["None", "Align", "Don't Align", "Always Break", "Block Indent"],
+            "enum": [
+              "none",
+              "align",
+              "dont_align",
+              "always_break",
+              "block_indent"
+            ],
+            "enumItemLabels": [
+              "None",
+              "Align",
+              "Don't Align",
+              "Always Break",
+              "Block Indent"
+            ],
             "default": "none",
             "description": "Alignment after open bracket"
           },
@@ -212,6 +278,9 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "axios": "^1.6.7",
+    "vscode-languageclient": "^9.0.1",
+    "ws": "^8.16.0",
+    "@types/ws": "^8.5.10"
   }
 }
