@@ -15,13 +15,14 @@ class FormattingVisitor(JavaParserVisitor):
             'start_index': -1,
             'end_index': -1
         }
+        self.last_statement_end: int = -1  # Track the end of the last statement
 
     def visitImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
-        if self.config.imports["merge"] == True:
-            if self.rewriter.getTokenStream().get(ctx.stop.tokenIndex+1).type in [JavaParser.WS]:
-                self.rewriter.replaceIndex(ctx.stop.tokenIndex+1, "\n")
-            else:
-                self.rewriter.insertBeforeIndex(ctx.stop.tokenIndex+1, "\n")
+        # Always ensure imports are on separate lines
+        if self.rewriter.getTokenStream().get(ctx.stop.tokenIndex+1).type in [JavaParser.WS]:
+            self.rewriter.replaceIndex(ctx.stop.tokenIndex+1, "\n")
+        else:
+            self.rewriter.insertBeforeIndex(ctx.stop.tokenIndex+1, "\n")
 
         if self.config.imports['order'] == "sort":
             if self.imports['start_index'] == -1:
@@ -35,15 +36,16 @@ class FormattingVisitor(JavaParserVisitor):
         text = []
         for i in range(start, stop+1):
             text.append(self.rewriter.getTokenStream().get(i).text)
-        return text[0] + " " + "".join(text[1:]).strip()
+        return "".join(text).strip()
     
     def _order_imports(self):
         if self.imports['items']:
-            self.rewriter.replaceRange(self.imports['start_index'], self.imports['end_index'], "\n".join(sorted(self.imports['items'])))
+            # Sort imports and ensure each is on a new line
+            sorted_imports = sorted(self.imports['items'])
+            self.rewriter.replaceRange(self.imports['start_index'], self.imports['end_index'], "\n".join(sorted_imports))
         
-        # Used to help with the lack of a newline in the last import
-        if self.config.imports['merge'] == True:
-            self.rewriter.insertBeforeIndex(self.imports['end_index']+1, "\n")
+        # Add newline after last import
+        self.rewriter.insertBeforeIndex(self.imports['end_index']+1, "\n")
 
     def visitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
         class_name = ctx.identifier().getText()
@@ -58,7 +60,7 @@ class FormattingVisitor(JavaParserVisitor):
         class_signature = f"{' '.join(modifiers)} class {class_name}".strip()
         self.rewriter.replaceRangeTokens(parent.start, ctx.identifier().stop, class_signature)
 
-        class_body : JavaParser.classBody = ctx.classBody()
+        class_body : JavaParser.ClassBodyContext = ctx.classBody()
 
         if class_body:
             open_brace = class_body.LBRACE().symbol
@@ -84,40 +86,70 @@ class FormattingVisitor(JavaParserVisitor):
 
             self.indent_level += 1
 
-        
         return self.visitChildren(ctx)
     
-    def visitMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
-        return_type = ctx.typeTypeOrVoid().getText()
-        method_name = ctx.identifier().getText()
+    def visitFieldDeclaration(self, ctx: JavaParser.FieldDeclarationContext):
+        # Format class fields with proper indentation and spacing
         modifiers = []
-        parent = ctx.parentCtx  
-        grandparent: Optional[JavaParser.StatementContext] = None
-        if isinstance(parent, JavaParser.MemberDeclarationContext):  
-            grandparent = parent.parentCtx  
-            if isinstance(grandparent, JavaParser.ClassBodyDeclarationContext):
-                if grandparent.modifier():
-                    modifiers = [mod.getText() for mod in grandparent.modifier()]
-                    modifiers = self._sort_modifiers(modifiers, self.config.method_modifier_order)
-
-        method_signature = f"{' '.join(modifiers)} {return_type} {method_name}".strip()
-
-        if grandparent: 
-            self.rewriter.replaceRangeTokens(grandparent.start, ctx.identifier().stop, f"\n{self._get_indent()}{method_signature}")
-
+        parent = ctx.parentCtx
+        if isinstance(parent, JavaParser.ClassBodyDeclarationContext):
+            if parent.modifier():
+                modifiers = [mod.getText() for mod in parent.modifier()]
+                modifiers = self._sort_modifiers(modifiers, self.config.method_modifier_order)
+        
+        type_text = ctx.typeType().getText()
+        variable_declarators = ctx.variableDeclarators()
+        
+        # Format each variable declarator on a new line
+        for i, declarator in enumerate(variable_declarators.variableDeclarator()):
+            if i == 0:
+                # First declarator goes on the same line as the type
+                field_text = f"{' '.join(modifiers)} {type_text} {declarator.getText()}".strip()
+                self.rewriter.replaceRangeTokens(parent.start, declarator.stop, f"\n{self._get_indent()}{field_text}")
+            else:
+                # Additional declarators go on new lines
+                field_text = f"{type_text} {declarator.getText()}".strip()
+                self.rewriter.insertBeforeToken(declarator.start, f"\n{self._get_indent()}")
+                self.rewriter.replaceRangeTokens(declarator.start, declarator.stop, field_text)
+        
+        # Add semicolon and newline
+        self.rewriter.insertAfter(variable_declarators.stop.tokenIndex, ";\n")
         return self.visitChildren(ctx)
     
     def visitStatement(self, ctx: JavaParser.StatementContext):
         if ctx.SWITCH():
-            close_paren = ctx.RBRACE().getSymbol()
-            open_brace = ctx.LBRACE().getSymbol()
+            # Get the switch block
+            open_brace = ctx.LBRACE().symbol
+            close_brace = ctx.RBRACE().symbol
+            
+            # Format braces
             if self.config.brace_style == "attach":
                 self.rewriter.replaceSingleToken(open_brace, " {")
             else:
                 self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}" + "{")
-            self.rewriter.insertBeforeToken(close_paren, f"\n{self._get_indent()}")
+            
+            # Format switch cases
+            for child in ctx.getChildren():
+                if isinstance(child, JavaParser.SwitchBlockStatementGroupContext):
+                    # Handle switch labels
+                    for label in child.switchLabel():
+                        self.rewriter.insertBeforeToken(label.start, f"\n{self._get_indent()}")
+                        self.rewriter.insertAfter(label.stop.tokenIndex, "\n")
+                        self.indent_level += 1
+                        
+                    # Handle statements in the case block
+                    for block_stmt in child.blockStatement():
+                        self.rewriter.insertBeforeToken(block_stmt.start, self._get_indent())
+                        # Check if this block statement contains a break statement
+                        if block_stmt.statement() and block_stmt.statement().BREAK():
+                            self.rewriter.insertAfter(block_stmt.stop.tokenIndex, "\n")
+                        
+                    self.indent_level -= 1
+            
+            # Format closing brace
+            self.rewriter.insertBeforeToken(close_brace, f"\n{self._get_indent()}")
+        
         return self.visitChildren(ctx)
-
 
     @staticmethod
     def handle_indentation(method):
@@ -338,6 +370,30 @@ class FormattingVisitor(JavaParserVisitor):
             if next_token.type != JavaParser.WS and next_token.text != " ":
                 self.rewriter.insertAfter(double_colon.tokenIndex, " ")
         return self.visitChildren(ctx)
+
+    def _should_add_newline_after_statement(self, token_index):
+        """Determine if we should add a newline after a statement."""
+        token_stream = self.rewriter.getTokenStream()
+        next_token = None
+        i = token_index + 1
+        
+        # Find next non-whitespace token
+        while i < len(token_stream.tokens):
+            token = token_stream.tokens[i]
+            if token.type not in [JavaParser.WS]:
+                next_token = token
+                break
+            i += 1
+            
+        if not next_token:
+            return False
+            
+        # Don't add newline if next token is a closing brace or on the same line
+        if (next_token.type == JavaParser.RBRACE or 
+            next_token.line == token_stream.tokens[token_index].line):
+            return False
+            
+        return True
 
     def get_formatted_code(self, tree):
         self.imports = {

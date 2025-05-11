@@ -33,6 +33,12 @@ class ConfigClass:
             'after_open_bracket': 'align', # false, 'align', 'dont_align', 'always_break', 'block_indent'
             'parameters_before_align': 2 # How many parameters before breaking if 'after_open_bracket' is 'align' or 'dont_align'
         }
+        self.comments = {
+            'javadoc_align_asterisks': True,
+            'preserve_block_comment_newlines': True,
+            'min_spaces_after_line_comment': 1,
+            'wrap_comments': True
+        }
 
     def parse_config(self):
         self.brace_style = self.config_dict['braceStyle']
@@ -49,3 +55,9 @@ class ConfigClass:
 
         self.aligns['after_open_bracket'] = self.config_dict['aligns']['afterOpenBracket']
         self.aligns['parameters_before_align'] = self.config_dict['aligns']['parametersBeforeAlignment']
+
+        if 'comments' in self.config_dict:
+            self.comments['javadoc_align_asterisks'] = self.config_dict['comments'].get('javadoc_align_asterisks', True)
+            self.comments['preserve_block_comment_newlines'] = self.config_dict['comments'].get('preserve_block_comment_newlines', True)
+            self.comments['min_spaces_after_line_comment'] = self.config_dict['comments'].get('min_spaces_after_line_comment', 1)
+            self.comments['wrap_comments'] = self.config_dict['comments'].get('wrap_comments', True)

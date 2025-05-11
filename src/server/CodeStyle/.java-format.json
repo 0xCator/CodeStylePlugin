@@ -23,5 +23,11 @@
     "aligns" : {
         "after_open_bracket": "align",
         "parameters_before_align": 2
+    },
+    "comments": {
+        "javadoc_align_asterisks": true,
+        "preserve_block_comment_newlines": true,
+        "min_spaces_after_line_comment": 1,
+        "wrap_comments": true
     }
 }
