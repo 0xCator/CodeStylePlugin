@@ -58,22 +58,24 @@ class FormattingVisitor(JavaParserVisitor):
         class_signature = f"{' '.join(modifiers)} class {class_name}".strip()
         self.rewriter.replaceRangeTokens(parent.start, ctx.identifier().stop, class_signature)
 
-        class_body : JavaParser.classBody = ctx.classBody()
+        class_body : JavaParser.ClassBodyContext = ctx.classBody()
 
         if class_body:
             open_brace = class_body.LBRACE().symbol
             close_brace = class_body.RBRACE().symbol
-
+            
             self._remove_whitespace(open_brace.tokenIndex + 1)
             self._remove_whitespace(open_brace.tokenIndex - 1)
             
             self._remove_whitespace(close_brace.tokenIndex - 1)
             self._remove_whitespace(close_brace.tokenIndex + 1)
 
+            self.rewriter.insertBeforeIndex(class_body.start.tokenIndex+1, f"\n{self._get_indent(additional_ident=1)}")
+
             if self.config.brace_style == "attach":
-                self.rewriter.replaceSingleToken(open_brace, " {")
+                self.rewriter.replaceSingleToken(open_brace, " {\n")
             else:
-                self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}"+"{")
+                self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}"+"{\n")
 
             if class_body.getChildCount() > 2:
                 brace_break = "\n"
@@ -242,35 +244,57 @@ class FormattingVisitor(JavaParserVisitor):
     def _sort_modifiers(self, modifiers, order):
         return sorted(modifiers, key=lambda x: order.index(x) if x in order else len(order))
     
-    def _get_indent(self):
+    def _get_indent(self, additional_ident =0):
         match self.config.indents['type']:
             case "spaces":
-                return " " * (self.indent_level * self.config.indents['size'])
+                return " " * ((self.indent_level +additional_ident) * self.config.indents['size'])
             # may it appear as 8 spaces but it is actually configurable
             # in text editors so it should be as a size of indent_size
             case "tabs":
-                return "\t" * self.indent_level
+                return "\t" * (self.indent_level + additional_ident)
     
     
     def visitVariableDeclarator(self, ctx: JavaParser.VariableDeclaratorContext):
-        if not ctx.ASSIGN():
+        parent = ctx.parentCtx 
+        is_method= False
+        while parent:
+            if isinstance(parent, JavaParser.MethodDeclarationContext):
+                is_method= True
+                break
+            parent = parent.parentCtx  # Move up the tree
+
+
+        if ctx.ASSIGN():
+            assignment = ctx.ASSIGN().symbol
+            if assignment:
+                if self.config.space_around_operator:
+                    prev_token_index = assignment.tokenIndex - 1
+                    next_token_index = assignment.tokenIndex + 1
+
+                    # add space before the assignment if needed
+                    prev_token = self.rewriter.getTokenStream().get(prev_token_index)
+                    if prev_token.type != JavaParser.WS and prev_token.text != " ":
+                        self.rewriter.insertBeforeIndex(assignment.tokenIndex, " ")
+
+                    # add space after the assignment if needed
+                    next_token = self.rewriter.getTokenStream().get(next_token_index)
+                    if next_token.type != JavaParser.WS and next_token.text != " ":
+                        self.rewriter.insertAfter(assignment.tokenIndex, " ")
+        if is_method:
             return super().visitVariableDeclarator(ctx)
-        assignment = ctx.ASSIGN().symbol
-        if assignment:
-            if self.config.space_around_operator:
-                prev_token_index = assignment.tokenIndex - 1
-                next_token_index = assignment.tokenIndex + 1
+        end = ctx.stop.tokenIndex
+        while self.rewriter.getTokenStream().get(end).type != JavaParser.SEMI:
+            end += 1
+        semi = end 
+        end = end +1
+        while self.rewriter.getTokenStream().get(end).type in [JavaParser.WS]:
+            self.rewriter.deleteToken(end)
+            end += 1
 
-                # add space before the assignment if needed
-                prev_token = self.rewriter.getTokenStream().get(prev_token_index)
-                if prev_token.type != JavaParser.WS and prev_token.text != " ":
-                    self.rewriter.insertBeforeIndex(assignment.tokenIndex, " ")
-
-                # add space after the assignment if needed
-                next_token = self.rewriter.getTokenStream().get(next_token_index)
-                if next_token.type != JavaParser.WS and next_token.text != " ":
-                    self.rewriter.insertAfter(assignment.tokenIndex, " ")
+        self.rewriter.insertBeforeIndex(semi+1, f"\n{self._get_indent()}")
+            
         return super().visitVariableDeclarator(ctx)
+
     def visitBinaryOperatorExpression(self, ctx: JavaParser.BinaryOperatorExpressionContext):
         if self.config.space_around_operator and ctx.bop:
 
