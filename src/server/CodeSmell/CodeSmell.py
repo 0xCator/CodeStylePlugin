@@ -2,11 +2,12 @@ import CodeSmell.classparser
 import CodeSmell.modelrunner
 import numpy as np
 import os
+from collections import defaultdict
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
 
 def start_analysis(code, progress_callback=None):
-    total_smells = []
+    total_smells: defaultdict = defaultdict(list)
 
     parser = CodeSmell.classparser.ClassParser(code)
     methods = parser.get_full_methods()
@@ -19,7 +20,15 @@ def start_analysis(code, progress_callback=None):
     current_progress = 0
 
     try:
-        total_smells.append(model.run_model(formatted_code))
+        # Entire class scan
+        class_smells = model.run_model(formatted_code)
+        # Add class smells to the dictionary with the key 'class'
+        total_smells.setdefault('class', [])
+        total_smells['class'].append(class_smells)
+        total_smells['class'] = np.concatenate(total_smells['class'])
+        total_smells['class'] = np.unique(total_smells['class'])
+        total_smells['class'] = total_smells['class'].tolist()
+
         current_progress += 1
 
         if progress_callback:
@@ -30,8 +39,10 @@ def start_analysis(code, progress_callback=None):
                     model.cancel()  # Signal model to stop
                     return []  # Return empty list if cancelled
 
-        for method in methods:
-            total_smells.append(model.run_model(method))
+        for index, method in enumerate(methods):
+            method_smells = model.run_model(method)
+            total_smells.setdefault(f'{prototypes[index]}', [])
+            total_smells[f'{prototypes[index]}'].append(method_smells)
             current_progress += 1
 
             if progress_callback:
@@ -43,7 +54,12 @@ def start_analysis(code, progress_callback=None):
                         return []  # Return empty list if cancelled
 
         for prototype in prototypes:
-            total_smells.append(model.run_model(prototype))
+            prototype_smells = model.run_model(prototype)
+            total_smells.setdefault(f'{prototype}', [])
+            total_smells[f'{prototype}'].append(prototype_smells)
+            total_smells[f'{prototype}'] = np.concatenate(total_smells[f'{prototype}'])
+            total_smells[f'{prototype}'] = np.unique(total_smells[f'{prototype}'])
+            total_smells[f'{prototype}'] = total_smells[f'{prototype}'].tolist()
             current_progress += 1
 
             if progress_callback:
@@ -53,11 +69,8 @@ def start_analysis(code, progress_callback=None):
                     if str(e) == "Analysis cancelled":
                         model.cancel()  # Signal model to stop
                         return []  # Return empty list if cancelled
-        
-        total_smells = np.concatenate(total_smells)
-        total_smells = np.unique(total_smells)
 
-        return total_smells.tolist()
+        return total_smells
     except Exception as e:
         if str(e) == "Analysis cancelled":
             return []

@@ -9,7 +9,7 @@ interface FormatResponse {
 }
 
 interface SmellResponse {
-	smells: string[];
+    [key: string]: string[];
 }
 
 let diagCollection: vscode.DiagnosticCollection;
@@ -412,13 +412,22 @@ async function analyzeSingleFile(file: vscode.Uri, clientId: string, token: vsco
         }
 
         const smellResponse = response.data as SmellResponse;
-        const smells: string[] = smellResponse.smells;
-        
-        if (smells.length > 0) {
+
+        if (smellResponse) {
             if (!outputChannel) {
                 outputChannel = vscode.window.createOutputChannel("Code Smells");
             }
-            outputChannel.appendLine(`${file.fsPath}: ${smells.join(", ")}`);
+            
+            outputChannel.appendLine(`${file.fsPath}:`);
+            //loop over each key in the smellResponse object
+            for (const [key, value] of Object.entries(smellResponse)) {
+                outputChannel.appendLine(`  ${key}:`);
+                value.forEach((v) => {
+                    outputChannel.appendLine(`    - ${v}`);
+                });
+            }
+            outputChannel.appendLine("\n");
+            outputChannel.show();
         }
         
         currentFileIndex++;

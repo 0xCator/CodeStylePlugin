@@ -41,4 +41,4 @@ class ModelRunner:
         labels = np.array(labels)
         labels = labels[predictions.astype(bool)]
 
-        return labels
+        return labels.tolist()
