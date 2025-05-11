@@ -46,6 +46,11 @@ class FormattingVisitor(JavaParserVisitor):
             self.rewriter.insertBeforeIndex(self.imports['end_index']+1, "\n")
 
     def visitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+        """
+        Formats a Java class declaration according to configured style rules.
+        
+        Adjusts modifier order, whitespace, indentation, and brace placement for class declarations based on formatting configuration. Applies indentation and newline after the opening brace, and ensures proper formatting around the class body.
+        """
         class_name = ctx.identifier().getText()
         modifiers = []
         parent = ctx.parentCtx
@@ -242,9 +247,30 @@ class FormattingVisitor(JavaParserVisitor):
             pos -=1
 
     def _sort_modifiers(self, modifiers, order):
+        """
+        Sorts a list of modifiers according to a specified order.
+        
+        Modifiers not present in the order list are placed at the end in their original order.
+        
+        Args:
+            modifiers: List of modifier strings to sort.
+            order: List defining the desired order of modifiers.
+        
+        Returns:
+            A new list of modifiers sorted according to the specified order.
+        """
         return sorted(modifiers, key=lambda x: order.index(x) if x in order else len(order))
     
     def _get_indent(self, additional_ident =0):
+        """
+        Returns the current indentation string based on the configured style and level.
+        
+        Args:
+            additional_ident: Optional number of additional indentation levels to apply.
+        
+        Returns:
+            A string of spaces or tabs representing the current indentation.
+        """
         match self.config.indents['type']:
             case "spaces":
                 return " " * ((self.indent_level +additional_ident) * self.config.indents['size'])
@@ -255,6 +281,11 @@ class FormattingVisitor(JavaParserVisitor):
     
     
     def visitVariableDeclarator(self, ctx: JavaParser.VariableDeclaratorContext):
+        """
+        Formats variable declarator statements with appropriate spacing and indentation.
+        
+        Ensures spaces around the assignment operator if configured. For variable declarations outside methods, removes trailing whitespace after the semicolon and inserts a newline with proper indentation. For declarations inside methods, only spacing around the assignment operator is adjusted.
+        """
         parent = ctx.parentCtx 
         is_method= False
         while parent:
@@ -296,6 +327,11 @@ class FormattingVisitor(JavaParserVisitor):
         return super().visitVariableDeclarator(ctx)
 
     def visitBinaryOperatorExpression(self, ctx: JavaParser.BinaryOperatorExpressionContext):
+        """
+        Ensures proper spacing around binary operators in expressions.
+        
+        If the configuration enables spacing around operators, inserts a space before and after each binary operator in the expression as needed.
+        """
         if self.config.space_around_operator and ctx.bop:
 
             # get operator token
