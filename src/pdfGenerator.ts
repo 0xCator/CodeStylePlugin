@@ -19,6 +19,9 @@ export class pdfGenerator {
         
         // Define the document definition
         const docDefinition: TDocumentDefinitions = {
+            info: {
+                title: 'Code Smell Report',
+            },
             content: this.createData(),
             header: (currentPage: number, pageCount: number) => {
                 return {
@@ -79,9 +82,20 @@ export class pdfGenerator {
         };
 
         // Create the PDF and write it to a file
-        pdfmake.createPdf(docDefinition).getBuffer((buffer) => {
-            fs.writeFileSync(outputPath, buffer);
-            console.log(`PDF generated at ${outputPath}`);
+        return new Promise<void>((resolve, reject) => {
+            try {
+            pdfmake.createPdf(docDefinition).getBuffer((buffer) => {
+                try {
+                fs.writeFileSync(outputPath, buffer);
+                console.log(`PDF generated at ${outputPath}`);
+                resolve();
+                } catch (err) {
+                reject(err);
+                }
+            });
+            } catch (err) {
+            reject(err);
+            }
         });
     }
 

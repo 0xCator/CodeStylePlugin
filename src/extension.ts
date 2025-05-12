@@ -457,11 +457,13 @@ async function createPDF(smellTable: SmellTable) {
     }
 
     const pdfGen = new pdfGenerator(smellTable);
-    await pdfGen.generate(saveUri.fsPath);
-
-    vscode.window.showInformationMessage(`PDF report generated: ${saveUri.fsPath}`);
-
-    openPDF(saveUri.fsPath);
+    try {
+        await pdfGen.generate(saveUri.fsPath);
+        vscode.window.showInformationMessage(`PDF report generated: ${saveUri.fsPath}`);
+        openPDF(saveUri.fsPath);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Error generating PDF report: ${error}`);
+    }
 }
 
 function openPDF(filePath: string) {
