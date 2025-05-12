@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import axios from 'axios';
+import axios, { create } from 'axios';
 import WebSocket from 'ws';
+import { pdfGenerator } from './pdfGenerator';
 
 interface FormatResponse {
 	formatted_code: string;
@@ -11,6 +12,8 @@ interface FormatResponse {
 interface SmellResponse {
     [key: string]: string[];
 }
+
+type SmellTable = Record<string, Record<string, string[]>>;
 
 let diagCollection: vscode.DiagnosticCollection;
 let outputChannel: vscode.OutputChannel;
@@ -26,9 +29,10 @@ let progressReporter: vscode.Progress<{ message: string }> | undefined;
 let progressResolve: ((value: void | PromiseLike<void>) => void) | undefined;
 let currentFileIndex = 0;
 let totalFiles = 0;
+let totalSmells: SmellTable = {};
 
 interface FileProgress {
-    fileName: string;
+    fileName: string; 
     progress: number;
     websocketId: string;
 }
@@ -265,6 +269,13 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 		return [];
 	}
 
+    //Sort files by name
+    javaFiles.sort((a, b) => {
+        const nameA = path.basename(a.fsPath);
+        const nameB = path.basename(b.fsPath);
+        return nameA.localeCompare(nameB);
+    });
+
 	return javaFiles;
 }
 
@@ -330,6 +341,7 @@ async function analyzeAllFiles(files: vscode.Uri[], token: vscode.CancellationTo
     totalFiles = files.length;
     currentFileIndex = 0;
     activeFilesProgress.clear();
+    totalSmells = {};
     
     progressBarPromise = vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
@@ -345,41 +357,39 @@ async function analyzeAllFiles(files: vscode.Uri[], token: vscode.CancellationTo
             }
         });
         
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             progressResolve = resolve;
             
-            const processBatch = async (startIndex: number) => {
+            // Process files sequentially instead of in batches
+            for (let i = 0; i < files.length; i++) {
                 if (token.isCancellationRequested) {
                     resolve();
                     return;
                 }
-
-                const batch = files.slice(startIndex, startIndex + BATCH_SIZE);
-                const batchPromises = batch.map(file => {
-                    const clientId = generateWebSocketId();
-                    activeFilesProgress.set(clientId, {
-                        fileName: file.fsPath,
-                        progress: 0,
-                        websocketId: clientId
-                    });
-                    return analyzeSingleFile(file, clientId, token);
+                
+                const file = files[i];
+                const clientId = generateWebSocketId();
+                activeFilesProgress.set(clientId, {
+                    fileName: file.fsPath,
+                    progress: 0,
+                    websocketId: clientId
                 });
                 
-                await Promise.all(batchPromises);
+                // Process one file at a time and wait for it to complete
+                await analyzeSingleFile(file, clientId, token, false);
                 
-                if (startIndex + BATCH_SIZE < files.length && !token.isCancellationRequested) {
-                    processBatch(startIndex + BATCH_SIZE);
-                } else {
-                    resolve();
-                }
-            };
+                // Update current file index after each file is processed
+                currentFileIndex = i + 1;
+            }
             
-            processBatch(0);
+            // All files have been processed
+            createPDF(totalSmells);
+            resolve();
         });
     });
 }
 
-async function analyzeSingleFile(file: vscode.Uri, clientId: string, token: vscode.CancellationToken) {
+async function analyzeSingleFile(file: vscode.Uri, clientId: string, token: vscode.CancellationToken, generatePDF: boolean = true) {
     if (token.isCancellationRequested) {
         return;
     }
@@ -413,21 +423,13 @@ async function analyzeSingleFile(file: vscode.Uri, clientId: string, token: vsco
 
         const smellResponse = response.data as SmellResponse;
 
-        if (smellResponse) {
-            if (!outputChannel) {
-                outputChannel = vscode.window.createOutputChannel("Code Smells");
-            }
-            
-            outputChannel.appendLine(`${file.fsPath}:`);
-            //loop over each key in the smellResponse object
-            for (const [key, value] of Object.entries(smellResponse)) {
-                outputChannel.appendLine(`  ${key}:`);
-                value.forEach((v) => {
-                    outputChannel.appendLine(`    - ${v}`);
-                });
-            }
-            outputChannel.appendLine("\n");
-            outputChannel.show();
+        if (generatePDF && smellResponse) {
+            const smellTable: SmellTable = {};
+            smellTable[file.fsPath] = smellResponse;
+            createPDF(smellTable);
+        }
+        else if (!generatePDF) {
+            totalSmells[file.fsPath] = smellResponse;
         }
         
         currentFileIndex++;
@@ -438,5 +440,46 @@ async function analyzeSingleFile(file: vscode.Uri, clientId: string, token: vsco
         }
     } finally {
         ws.close();
+    }
+}
+
+async function createPDF(smellTable: SmellTable) {
+    const saveUri = await vscode.window.showSaveDialog({
+        filters: {
+            'PDF Files': ['pdf']
+        },
+        title: 'Save PDF Report'
+    });
+
+    if (!saveUri) {
+        vscode.window.showErrorMessage('No file selected for saving the PDF report.');
+        return;
+    }
+
+    const pdfGen = new pdfGenerator(smellTable);
+    await pdfGen.generate(saveUri.fsPath);
+
+    vscode.window.showInformationMessage(`PDF report generated: ${saveUri.fsPath}`);
+
+    openPDF(saveUri.fsPath);
+}
+
+function openPDF(filePath: string) {
+    // For different platforms
+    const platform = process.platform;
+    
+    switch(platform) {
+        case 'win32':
+            require('child_process').exec(`start "" "${filePath}"`);
+            break;
+        case 'darwin':
+            require('child_process').exec(`open "${filePath}"`);
+            break;
+        case 'linux':
+            require('child_process').exec(`xdg-open "${filePath}"`);
+            break;
+        default:
+            // Try to open in VS Code if available
+            vscode.commands.executeCommand('vscode.open', vscode.Uri.file(filePath));
     }
 }
