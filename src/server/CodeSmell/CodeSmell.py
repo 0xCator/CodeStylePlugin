@@ -37,7 +37,7 @@ def start_analysis(code, progress_callback=None):
             except Exception as e:
                 if str(e) == "Analysis cancelled":
                     model.cancel()  # Signal model to stop
-                    return []  # Return empty list if cancelled
+                    return {}  # Return empty dictionary if cancelled
 
         for index, method in enumerate(methods):
             method_smells = model.run_model(method)
@@ -51,7 +51,7 @@ def start_analysis(code, progress_callback=None):
                 except Exception as e:
                     if str(e) == "Analysis cancelled":
                         model.cancel()  # Signal model to stop
-                        return []  # Return empty list if cancelled
+                        return {}  # Return empty dictionary if cancelled
 
         for prototype in prototypes:
             prototype_smells = model.run_model(prototype)
@@ -68,10 +68,10 @@ def start_analysis(code, progress_callback=None):
                 except Exception as e:
                     if str(e) == "Analysis cancelled":
                         model.cancel()  # Signal model to stop
-                        return []  # Return empty list if cancelled
+                        return {}  # Return empty dictionary if cancelled
 
         return total_smells
     except Exception as e:
         if str(e) == "Analysis cancelled":
-            return []
+            return {}
         raise e

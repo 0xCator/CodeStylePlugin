@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import axios, { create } from 'axios';
+import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
 
@@ -21,7 +21,6 @@ const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
-const BATCH_SIZE = 5; // Number of files to analyze in parallel
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -147,8 +146,8 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 
 	// Register the command to format code
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codestyletest.format', () => {
-			const choice = vscode.window.showQuickPick(
+		vscode.commands.registerCommand('codestyletest.format', async () => {
+			const choice = await vscode.window.showQuickPick(
 				["Format current file", "Format all Java files"],
 				{ placeHolder: "Choose an option" }
 			);
@@ -158,25 +157,23 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 				return;
 			}
 
-			choice.then((selectedOption) => {
-				switch (selectedOption) {
-					case "Format current file":
-						const document = getCurrentDocument();
-						if (document) {
-							formatCode(document);
-						}
-					break;
-					case "Format all Java files":
-						getAllJavaFiles().then((javaFiles) => {
-							javaFiles.forEach((fileUri) => {
-								vscode.workspace.openTextDocument(fileUri).then((doc) => {
-									formatCode(doc);
-								});
-							});
-						});
-					break;
-				}
-			})
+            switch (choice) {
+                case "Format current file":
+                    const document = getCurrentDocument();
+                    if (document) {
+                        formatCode(document);
+                    }
+                break;
+                case "Format all Java files":
+                    getAllJavaFiles().then((javaFiles) => {
+                        javaFiles.forEach((fileUri) => {
+                            vscode.workspace.openTextDocument(fileUri).then((doc) => {
+                                formatCode(doc);
+                            });
+                        });
+                    });
+                break;
+            }
 		})
 	);
 
@@ -379,7 +376,7 @@ async function analyzeAllFiles(files: vscode.Uri[], token: vscode.CancellationTo
                 await analyzeSingleFile(file, clientId, token, false);
                 
                 // Update current file index after each file is processed
-                currentFileIndex = i + 1;
+                //currentFileIndex = i + 1;
             }
             
             // All files have been processed
@@ -469,16 +466,17 @@ async function createPDF(smellTable: SmellTable) {
 function openPDF(filePath: string) {
     // For different platforms
     const platform = process.platform;
+    const { spawn } = require('child_process')
     
     switch(platform) {
         case 'win32':
-            require('child_process').exec(`start "" "${filePath}"`);
+            spawn('start', ['', filePath], { detached: true, shell: true });
             break;
         case 'darwin':
-            require('child_process').exec(`open "${filePath}"`);
+            spawn('open', [filePath], { detached: true });
             break;
         case 'linux':
-            require('child_process').exec(`xdg-open "${filePath}"`);
+            spawn('xdg-open', [filePath], { detached: true });
             break;
         default:
             // Try to open in VS Code if available

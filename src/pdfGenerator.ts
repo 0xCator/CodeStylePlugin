@@ -1,6 +1,6 @@
-import * as pdfmake from 'pdfmake/build/pdfmake';
-import * as pdffonts from 'pdfmake/build/vfs_fonts';
-(pdfmake as any).vfs = pdffonts.vfs;
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+pdfMake.vfs = pdfFonts.vfs;
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 import * as fs from 'fs';
 
@@ -84,17 +84,17 @@ export class pdfGenerator {
         // Create the PDF and write it to a file
         return new Promise<void>((resolve, reject) => {
             try {
-            pdfmake.createPdf(docDefinition).getBuffer((buffer) => {
+                pdfMake.createPdf(docDefinition).getBuffer((buffer) => {
                 try {
-                fs.writeFileSync(outputPath, buffer);
-                console.log(`PDF generated at ${outputPath}`);
-                resolve();
+                    fs.writeFileSync(outputPath, buffer);
+                    console.log(`PDF generated at ${outputPath}`);
+                    resolve();
                 } catch (err) {
-                reject(err);
+                    reject(err);
                 }
             });
             } catch (err) {
-            reject(err);
+                reject(err);
             }
         });
     }
