@@ -1,4 +1,6 @@
 from typing import Optional
+
+from antlr4.tree.TokenTagToken import TokenTagToken
 from CodeStyle.JavaParser import JavaParser
 from CodeStyle.JavaParserVisitor import JavaParserVisitor
 from antlr4.TokenStreamRewriter import TokenStreamRewriter
@@ -46,6 +48,11 @@ class FormattingVisitor(JavaParserVisitor):
             self.rewriter.insertBeforeIndex(self.imports['end_index']+1, "\n")
 
     def visitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+        """
+        Formats a Java class declaration according to configured style rules.
+        
+        Adjusts modifier order, whitespace, indentation, and brace placement for class declarations based on formatting configuration. Applies indentation and newline after the opening brace, and ensures proper formatting around the class body.
+        """
         class_name = ctx.identifier().getText()
         modifiers = []
         parent = ctx.parentCtx
@@ -58,22 +65,24 @@ class FormattingVisitor(JavaParserVisitor):
         class_signature = f"{' '.join(modifiers)} class {class_name}".strip()
         self.rewriter.replaceRangeTokens(parent.start, ctx.identifier().stop, class_signature)
 
-        class_body : JavaParser.classBody = ctx.classBody()
+        class_body : JavaParser.ClassBodyContext = ctx.classBody()
 
         if class_body:
             open_brace = class_body.LBRACE().symbol
             close_brace = class_body.RBRACE().symbol
-
+            
             self._remove_whitespace(open_brace.tokenIndex + 1)
             self._remove_whitespace(open_brace.tokenIndex - 1)
             
             self._remove_whitespace(close_brace.tokenIndex - 1)
             self._remove_whitespace(close_brace.tokenIndex + 1)
 
+            self.rewriter.insertBeforeIndex(class_body.start.tokenIndex+1, f"{self._get_indent(additional_ident=1)}")
+
             if self.config.brace_style == "attach":
-                self.rewriter.replaceSingleToken(open_brace, " {")
+                self.rewriter.replaceSingleToken(open_brace, " {\n")
             else:
-                self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}"+"{")
+                self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}"+"{\n")
 
             if class_body.getChildCount() > 2:
                 brace_break = "\n"
@@ -240,38 +249,98 @@ class FormattingVisitor(JavaParserVisitor):
             pos -=1
 
     def _sort_modifiers(self, modifiers, order):
+        """
+        Sorts a list of modifiers according to a specified order.
+        
+        Modifiers not present in the order list are placed at the end in their original order.
+        
+        Args:
+            modifiers: List of modifier strings to sort.
+            order: List defining the desired order of modifiers.
+        
+        Returns:
+            A new list of modifiers sorted according to the specified order.
+        """
         return sorted(modifiers, key=lambda x: order.index(x) if x in order else len(order))
     
-    def _get_indent(self):
+    def _get_indent(self, additional_ident =0):
+        """
+        Returns the current indentation string based on the configured style and level.
+        
+        Args:
+            additional_ident: Optional number of additional indentation levels to apply.
+        
+        Returns:
+            A string of spaces or tabs representing the current indentation.
+        """
         match self.config.indents['type']:
             case "spaces":
-                return " " * (self.indent_level * self.config.indents['size'])
+                return " " * ((self.indent_level +additional_ident) * self.config.indents['size'])
             # may it appear as 8 spaces but it is actually configurable
             # in text editors so it should be as a size of indent_size
             case "tabs":
-                return "\t" * self.indent_level
+                return "\t" * (self.indent_level + additional_ident)
     
     
     def visitVariableDeclarator(self, ctx: JavaParser.VariableDeclaratorContext):
-        if not ctx.ASSIGN():
+        """
+        Formats variable declarator statements with appropriate spacing and indentation.
+        
+        Ensures spaces around the assignment operator if configured. For variable declarations outside methods, removes trailing whitespace after the semicolon and inserts a newline with proper indentation. For declarations inside methods, only spacing around the assignment operator is adjusted.
+        """
+        parent = ctx.parentCtx 
+        parentCopy = parent
+        is_method= False
+        while parent:
+            if isinstance(parent, JavaParser.MethodDeclarationContext):
+                is_method= True
+                break
+            parent = parent.parentCtx  # Move up the tree
+
+
+        if ctx.ASSIGN():
+            assignment = ctx.ASSIGN().symbol
+            if assignment:
+                if self.config.space_around_operator:
+                    prev_token_index = assignment.tokenIndex - 1
+                    next_token_index = assignment.tokenIndex + 1
+
+                    # add space before the assignment if needed
+                    prev_token = self.rewriter.getTokenStream().get(prev_token_index)
+                    if prev_token.type != JavaParser.WS and prev_token.text != " ":
+                        self.rewriter.insertBeforeIndex(assignment.tokenIndex, " ")
+
+                    # add space after the assignment if needed
+                    next_token = self.rewriter.getTokenStream().get(next_token_index)
+                    if next_token.type != JavaParser.WS and next_token.text != " ":
+                        self.rewriter.insertAfter(assignment.tokenIndex, " ")
+        if is_method:
             return super().visitVariableDeclarator(ctx)
-        assignment = ctx.ASSIGN().symbol
-        if assignment:
-            if self.config.space_around_operator:
-                prev_token_index = assignment.tokenIndex - 1
-                next_token_index = assignment.tokenIndex + 1
+        semi = ctx.stop.tokenIndex
+        if hasattr(parentCopy, 'SEMI') and parentCopy.SEMI():
+            semi = parentCopy.SEMI().symbol.tokenIndex
+        else:
+            token_stream = self.rewriter.getTokenStream()
+            end = ctx.stop.tokenIndex
+            while token_stream and token_stream.get(end).type != JavaParser.SEMI:
+                if token_stream.get(end).type in [JavaParser.WS]:
+                    self.rewriter.deleteToken(end)
+                end +=1
+            semi = end
+            if token_stream.get(semi+1).type in [JavaParser.WS]:
+                self.rewriter.deleteToken(semi+1)
 
-                # add space before the assignment if needed
-                prev_token = self.rewriter.getTokenStream().get(prev_token_index)
-                if prev_token.type != JavaParser.WS and prev_token.text != " ":
-                    self.rewriter.insertBeforeIndex(assignment.tokenIndex, " ")
 
-                # add space after the assignment if needed
-                next_token = self.rewriter.getTokenStream().get(next_token_index)
-                if next_token.type != JavaParser.WS and next_token.text != " ":
-                    self.rewriter.insertAfter(assignment.tokenIndex, " ")
+        self.rewriter.insertBeforeIndex(semi+1, f"\n{self._get_indent()}")
+            
         return super().visitVariableDeclarator(ctx)
+
     def visitBinaryOperatorExpression(self, ctx: JavaParser.BinaryOperatorExpressionContext):
+        """
+        Ensures proper spacing around binary operators in expressions.
+        
+        If the configuration enables spacing around operators, inserts a space before and after each binary operator in the expression as needed.
+        """
         if self.config.space_around_operator and ctx.bop:
 
             # get operator token
