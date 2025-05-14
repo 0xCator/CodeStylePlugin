@@ -48,8 +48,9 @@ class ClassParser:
     def get_method_prototypes(self):
         methods = self.get_methods()
         constructors = self.get_constructors()
-        for constructor in constructors:
-            methods.append(constructor)
+        for method in methods:
+            constructors.append(method)
+        methods = constructors
         prototypes = []
         for method in methods:
             prototype = ''
@@ -66,8 +67,9 @@ class ClassParser:
     def get_full_methods(self):
         methods = self.get_methods()
         constructors = self.get_constructors()
-        for constructor in constructors:
-            methods.append(constructor)
+        for method in methods:
+            constructors.append(method)
+        methods = constructors
         full_methods = []
 
         for method in methods:

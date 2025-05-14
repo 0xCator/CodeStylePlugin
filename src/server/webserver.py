@@ -107,7 +107,8 @@ async def analyze_smells(request: SmellRequest):
             progress_callback
         )
         logger.info(f"Analysis completed for client {request.websocket_id}")
-        return {"smells": smells}
+        logger.info(f"Detected smells: {smells}")
+        return smells
     except Exception as e:
         logger.error(f"Analysis error: {e}")
         if str(e) == "Analysis cancelled":
