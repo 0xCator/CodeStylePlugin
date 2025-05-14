@@ -19,8 +19,9 @@ class FormattingVisitor(JavaParserVisitor):
         }
 
     def visitImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
-        if self.config.imports["merge"] == True:
-            if self.rewriter.getTokenStream().get(ctx.stop.tokenIndex+1).type in [JavaParser.WS]:
+        token_stream = self.rewriter.getTokenStream()
+        if not self.config.imports["merge"]:
+            if token_stream.get(ctx.stop.tokenIndex+1).type in [JavaParser.WS]:
                 self.rewriter.replaceIndex(ctx.stop.tokenIndex+1, "\n")
             else:
                 self.rewriter.insertBeforeIndex(ctx.stop.tokenIndex+1, "\n")
@@ -44,7 +45,7 @@ class FormattingVisitor(JavaParserVisitor):
             self.rewriter.replaceRange(self.imports['start_index'], self.imports['end_index'], "\n".join(sorted(self.imports['items'])))
         
         # Used to help with the lack of a newline in the last import
-        if self.config.imports['merge'] == True:
+        if not self.config.imports['merge']:
             self.rewriter.insertBeforeIndex(self.imports['end_index']+1, "\n")
 
     def visitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
@@ -56,6 +57,12 @@ class FormattingVisitor(JavaParserVisitor):
         class_name = ctx.identifier().getText()
         modifiers = []
         parent = ctx.parentCtx
+
+        # add new line before class declaration
+        if self.config.imports['merge']:
+            self.rewriter.insertBeforeToken(parent.start, "\n\n")
+        else:
+            self.rewriter.insertBeforeToken(parent.start, "\n")
 
         if isinstance(parent, JavaParser.TypeDeclarationContext):
             if parent.classOrInterfaceModifier():
