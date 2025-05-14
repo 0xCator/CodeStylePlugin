@@ -1,4 +1,6 @@
 from typing import Optional
+
+from antlr4.tree.TokenTagToken import TokenTagToken
 from CodeStyle.JavaParser import JavaParser
 from CodeStyle.JavaParserVisitor import JavaParserVisitor
 from antlr4.TokenStreamRewriter import TokenStreamRewriter
@@ -75,7 +77,7 @@ class FormattingVisitor(JavaParserVisitor):
             self._remove_whitespace(close_brace.tokenIndex - 1)
             self._remove_whitespace(close_brace.tokenIndex + 1)
 
-            self.rewriter.insertBeforeIndex(class_body.start.tokenIndex+1, f"\n{self._get_indent(additional_ident=1)}")
+            self.rewriter.insertBeforeIndex(class_body.start.tokenIndex+1, f"{self._get_indent(additional_ident=1)}")
 
             if self.config.brace_style == "attach":
                 self.rewriter.replaceSingleToken(open_brace, " {\n")
@@ -287,6 +289,7 @@ class FormattingVisitor(JavaParserVisitor):
         Ensures spaces around the assignment operator if configured. For variable declarations outside methods, removes trailing whitespace after the semicolon and inserts a newline with proper indentation. For declarations inside methods, only spacing around the assignment operator is adjusted.
         """
         parent = ctx.parentCtx 
+        parentCopy = parent
         is_method= False
         while parent:
             if isinstance(parent, JavaParser.MethodDeclarationContext):
@@ -313,14 +316,20 @@ class FormattingVisitor(JavaParserVisitor):
                         self.rewriter.insertAfter(assignment.tokenIndex, " ")
         if is_method:
             return super().visitVariableDeclarator(ctx)
-        end = ctx.stop.tokenIndex
-        while self.rewriter.getTokenStream().get(end).type != JavaParser.SEMI:
-            end += 1
-        semi = end 
-        end = end +1
-        while self.rewriter.getTokenStream().get(end).type in [JavaParser.WS]:
-            self.rewriter.deleteToken(end)
-            end += 1
+        semi = ctx.stop.tokenIndex
+        if hasattr(parentCopy, 'SEMI') and parentCopy.SEMI():
+            semi = parentCopy.SEMI().symbol.tokenIndex
+        else:
+            token_stream = self.rewriter.getTokenStream()
+            end = ctx.stop.tokenIndex
+            while token_stream and token_stream.get(end).type != JavaParser.SEMI:
+                if token_stream.get(end).type in [JavaParser.WS]:
+                    self.rewriter.deleteToken(end)
+                end +=1
+            semi = end
+            if token_stream.get(semi+1).type in [JavaParser.WS]:
+                self.rewriter.deleteToken(semi+1)
+
 
         self.rewriter.insertBeforeIndex(semi+1, f"\n{self._get_indent()}")
             
