@@ -1,6 +1,9 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import CodeRefinement.ModelRunner
 import os
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
 
@@ -11,14 +14,8 @@ def clean_code(code):
 
     return cleaned_code
 
-def start_refinement(code, settings=None):
-    code = clean_code(code)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_PATH)
-
-    inputs = tokenizer(code, return_tensors="pt", max_length=512, truncation=True, padding='max_length')
-    outputs = model.generate(**inputs, max_length=512, num_beams=1, do_sample=False, use_cache=True)
-
-    refined_code = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
+def start_refinement(code, prompt, settings=None):
+    cleaned_code = clean_code(code)
+    model = CodeRefinement.ModelRunner.ModelRunner(MODEL_PATH)
+    refined_code = model.run_model(cleaned_code, prompt)
     return refined_code

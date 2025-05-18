@@ -242,7 +242,7 @@
       "activitybar": [
         {
           "id": "extensionTab",
-          "title": "Code Style and Smells",
+          "title": "Java Code Assistant",
           "icon": "resources/javacodeassistant.svg"
         }
       ]
@@ -251,7 +251,7 @@
       "extensionTab": [
         {
           "id": "customView",
-          "name": "Code Style and Smells",
+          "name": "Java Code Assistant",
           "icon": "resources/javacodeassistant.svg"
         }
       ]

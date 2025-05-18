@@ -13,6 +13,10 @@ interface SmellResponse {
     [key: string]: string[];
 }
 
+interface RefinementResponse {
+    refined_code: string;
+}
+
 type SmellTable = Record<string, Record<string, string[]>>;
 
 let diagCollection: vscode.DiagnosticCollection;
@@ -242,6 +246,61 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 			}
 		})
 	);
+
+    //Register the command to refine code
+    context.subscriptions.push(
+        vscode.commands.registerCommand('javacodeassistant.refine', async () => {
+            const document = getCurrentDocument();
+            if (document) {
+                // Text has to be a selection
+                const selection = vscode.window.activeTextEditor?.selection;
+                const selectedText = selection ? document.getText(selection) : document.getText();
+
+                if (!selectedText || selectedText.length === 0) {
+                    vscode.window.showErrorMessage("No text selected");
+                    return;
+                }
+
+                const prompt = await vscode.window.showInputBox({
+                    prompt: "Enter a prompt for the code refinement"
+                })
+
+                if (!prompt) {
+                    vscode.window.showErrorMessage("No prompt provided");
+                    return;
+                }
+
+                const configs = vscode.workspace.getConfiguration("javacodeassistant");
+                const settings = JSON.parse(JSON.stringify(configs));
+
+                try {
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: "Generating refinement",
+                        cancellable: false
+                    }, async (progress) => {
+                        const response = await axios.post(`${SERVER_URL}/refine`, {
+                            code: selectedText,
+                            prompt: prompt,
+                            settings: settings
+                        });
+
+                        const refineResponse = response.data as RefinementResponse;
+                        const refinedCode: string = refineResponse.refined_code;
+
+                        if (refinedCode != null) {
+                            const editor = await vscode.window.showTextDocument(document, {preview: false});
+                            editor.edit(editBuilder => {
+                                editBuilder.replace(selection!, refinedCode);
+                            });
+                        }
+                    });
+                } catch (e) {
+                    vscode.window.showErrorMessage(`Error: ${e}`);
+                }
+            }
+        })
+    );
 }
 
 function getCurrentDocument() : vscode.TextDocument | undefined {
