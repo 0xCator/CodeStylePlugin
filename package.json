@@ -1,6 +1,6 @@
 {
-  "name": "codestyletest",
-  "displayName": "codestyletest",
+  "name": "javacodeassistant",
+  "displayName": "javacodeassistant",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -26,21 +26,26 @@
     ],
     "commands": [
       {
-        "command": "codestyletest.format",
+        "command": "javacodeassistant.format",
         "title": "Format Java Code",
-        "category": "Code Style and Smells"
+        "category": "Java Code Assistant"
       },
       {
-        "command": "codestyletest.analyze",
+        "command": "javacodeassistant.analyze",
         "title": "Analyze Java code smells",
-        "category": "Code Style and Smells"
+        "category": "Java Code Assistant"
+      },
+      {
+        "command": "javacodeassistant.refine",
+        "title": "Refine Java code",
+        "category": "Java Code Assistant"
       }
     ],
     "configuration": [
       {
         "title": "Miscellaneous",
         "properties": {
-          "codestyletest.braceStyle": {
+          "javacodeassistant.braceStyle": {
             "type": "string",
             "enum": [
               "break",
@@ -53,12 +58,12 @@
             "default": "break",
             "description": "Brace style for blocks"
           },
-          "codestyletest.spaceAroundOperators": {
+          "javacodeassistant.spaceAroundOperators": {
             "type": "boolean",
             "default": true,
             "description": "Insert spaces around operators"
           },
-          "codestyletest.maxLineLength": {
+          "javacodeassistant.maxLineLength": {
             "type": "number",
             "default": 100,
             "description": "Maximum line length"
@@ -68,7 +73,7 @@
       {
         "title": "Modifier Order",
         "properties": {
-          "codestyletest.modifierOrder.class": {
+          "javacodeassistant.modifierOrder.class": {
             "type": "array",
             "items": {
               "type": "string",
@@ -92,7 +97,7 @@
             ],
             "description": "Order of modifiers for classes"
           },
-          "codestyletest.modifierOrder.method": {
+          "javacodeassistant.modifierOrder.method": {
             "type": "array",
             "items": {
               "type": "string",
@@ -125,27 +130,27 @@
       {
         "title": "Naming Conventions",
         "properties": {
-          "codestyletest.namingConventions.class": {
+          "javacodeassistant.namingConventions.class": {
             "type": "string",
             "default": "pascalcase",
             "description": "Naming convention for classes (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
           },
-          "codestyletest.namingConventions.method": {
+          "javacodeassistant.namingConventions.method": {
             "type": "string",
             "default": "camelcase",
             "description": "Naming convention for methods (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
           },
-          "codestyletest.namingConventions.variable": {
+          "javacodeassistant.namingConventions.variable": {
             "type": "string",
             "default": "camelcase",
             "description": "Naming convention for variables (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
           },
-          "codestyletest.namingConventions.constant": {
+          "javacodeassistant.namingConventions.constant": {
             "type": "string",
             "default": "uppercase",
             "description": "Naming convention for constants (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
           },
-          "codestyletest.namingConventions.parameter": {
+          "javacodeassistant.namingConventions.parameter": {
             "type": "string",
             "default": "camelcase",
             "description": "Naming convention for parameters (Use 'pascalcase' for PascalCase, 'camelcase' for camelCase, 'uppercase' for UPPERCASE, or a custom regex pattern)"
@@ -155,7 +160,7 @@
       {
         "title": "Imports",
         "properties": {
-          "codestyletest.imports.order": {
+          "javacodeassistant.imports.order": {
             "type": "string",
             "enum": [
               "sort",
@@ -168,7 +173,7 @@
             "default": "preserve",
             "description": "Order of imports"
           },
-          "codestyletest.imports.merge": {
+          "javacodeassistant.imports.merge": {
             "type": "boolean",
             "default": false,
             "description": "Merge imports"
@@ -178,12 +183,12 @@
       {
         "title": "Indentation",
         "properties": {
-          "codestyletest.indents.size": {
+          "javacodeassistant.indents.size": {
             "type": "number",
             "default": 4,
             "description": "Indent size"
           },
-          "codestyletest.indents.type": {
+          "javacodeassistant.indents.type": {
             "type": "string",
             "enum": [
               "spaces",
@@ -196,7 +201,7 @@
             "default": "spaces",
             "description": "Indent type"
           },
-          "codestyletest.indents.switchCaseLabels": {
+          "javacodeassistant.indents.switchCaseLabels": {
             "type": "boolean",
             "default": true,
             "description": "Indent switch case labels"
@@ -206,7 +211,7 @@
       {
         "title": "Alignments",
         "properties": {
-          "codestyletest.aligns.afterOpenBracket": {
+          "javacodeassistant.aligns.afterOpenBracket": {
             "type": "string",
             "enum": [
               "none",
@@ -225,7 +230,7 @@
             "default": "none",
             "description": "Alignment after open bracket"
           },
-          "codestyletest.aligns.parametersBeforeAlignment": {
+          "javacodeassistant.aligns.parametersBeforeAlignment": {
             "type": "number",
             "default": 2,
             "description": "Parameters before alignment (Works in *Align* and *Don't Align* modes)"
@@ -238,7 +243,7 @@
         {
           "id": "extensionTab",
           "title": "Code Style and Smells",
-          "icon": "resources/codestyletest.svg"
+          "icon": "resources/javacodeassistant.svg"
         }
       ]
     },
@@ -247,14 +252,14 @@
         {
           "id": "customView",
           "name": "Code Style and Smells",
-          "icon": "resources/codestyletest.svg"
+          "icon": "resources/javacodeassistant.svg"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "customView",
-        "contents": "[Format Java code](command:codestyletest.format)\n[Analyze Java code smells](command:codestyletest.analyze)"
+        "contents": "[Format Java code](command:javacodeassistant.format)\n[Analyze Java code smells](command:javacodeassistant.analyze)\n[Refine Java code](command:javacodeassistant.refine)"
       }
     ]
   },

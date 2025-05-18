@@ -142,11 +142,11 @@ async function cancelAnalysis(websocketIds: string[]) {
 }
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
-	diagCollection = vscode.languages.createDiagnosticCollection("CodeStyleTest");
+	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
 
 	// Register the command to format code
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codestyletest.format', async () => {
+		vscode.commands.registerCommand('javacodeassistant.format', async () => {
 			const choice = await vscode.window.showQuickPick(
 				["Format current file", "Format all Java files"],
 				{ placeHolder: "Choose an option" }
@@ -179,7 +179,7 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 
 	// Register the command to analyze smells
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codestyletest.analyze', async () => {
+		vscode.commands.registerCommand('javacodeassistant.analyze', async () => {
 			// Cancel any ongoing analysis
 			if (cancellationTokenSource) {
 				cancellationTokenSource.cancel();
@@ -278,7 +278,7 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 
 async function formatCode(document: vscode.TextDocument) : Promise<void> {
 	const text = document.getText();
-	const configs = vscode.workspace.getConfiguration("codestyletest");
+	const configs = vscode.workspace.getConfiguration("javacodeassistant");
 	const settings = JSON.parse(JSON.stringify(configs));
 
 	try {
