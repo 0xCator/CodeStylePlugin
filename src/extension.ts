@@ -530,30 +530,44 @@ async function importSettings() {
         openLabel: "Import Settings"
     });
 
-    if (uris && uris[0]) {
-        const data = fs.readFileSync(uris[0].fsPath, 'utf8');
-        const settings = JSON.parse(data);
-
-        console.log(validateSettings(settings))
-
-        if (!validateSettings(settings)) {
-            vscode.window.showErrorMessage("Invalid or corrupted settings file.");
-            return;
-        }
-
-        for (const [key, value] of Object.entries(settings)) {
-            if (typeof value === 'object') {
-                for (const [key2, value2] of Object.entries(value!)) {
-                    await vscode.workspace.getConfiguration('codestyletest')
-                        .update(`${key}.${key2}`, value2, vscode.ConfigurationTarget.Global);
-                }
-            } else {
-                await vscode.workspace.getConfiguration('codestyletest')
-                    .update(key, value, vscode.ConfigurationTarget.Global);
+    if (uris?.[0]) {
+        try {
+            const data = fs.readFileSync(uris[0].fsPath, 'utf8');
+            let settings;
+            try {
+                settings = JSON.parse(data);
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    `Failed to parse settings file: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
             }
-        }
 
-        vscode.window.showInformationMessage('Settings imported!');
+            if (!validateSettings(settings)) {
+                vscode.window.showErrorMessage("Invalid or corrupted settings file.");
+                return;
+            }
+
+            for (const [key, value] of Object.entries(settings)) {
+                if (typeof value === 'object') {
+                    for (const [key2, value2] of Object.entries(value!)) {
+                        await vscode.workspace
+                            .getConfiguration('codestyletest')
+                            .update(`${key}.${key2}`, value2, vscode.ConfigurationTarget.Global);
+                    }
+                } else {
+                    await vscode.workspace
+                        .getConfiguration('codestyletest')
+                        .update(key, value, vscode.ConfigurationTarget.Global);
+                }
+            }
+
+            vscode.window.showInformationMessage('Settings imported!');
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to read settings file: ${error instanceof Error ? error.message : String(error)}`
+            );
+        }
     }
 }
 
