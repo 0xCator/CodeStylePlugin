@@ -23,7 +23,9 @@ const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
+
 const ajv = new Ajv();
+const configFileName = "assistantConfig.json";
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -164,14 +166,14 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
                 case "Format current file":
                     const document = getCurrentDocument();
                     if (document) {
-                        formatCode(document);
+                        formatCode(document, context);
                     }
                 break;
                 case "Format all Java files":
                     getAllJavaFiles().then((javaFiles) => {
                         javaFiles.forEach((fileUri) => {
                             vscode.workspace.openTextDocument(fileUri).then((doc) => {
-                                formatCode(doc);
+                                formatCode(doc, context);
                             });
                         });
                     });
@@ -250,11 +252,6 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
     context.subscriptions.push(
         vscode.commands.registerCommand('codestyletest.exportSettings', exportSettings)
     );
-
-    // Register the command to import settings
-    context.subscriptions.push(
-        vscode.commands.registerCommand('codestyletest.importSettings', importSettings)
-    );
 }
 
 function getCurrentDocument() : vscode.TextDocument | undefined {
@@ -289,10 +286,18 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 	return javaFiles;
 }
 
-async function formatCode(document: vscode.TextDocument) : Promise<void> {
+async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext) : Promise<void> {
 	const text = document.getText();
 	const configs = vscode.workspace.getConfiguration("codestyletest");
-	const settings = JSON.parse(JSON.stringify(configs));
+
+    let settings;
+    try {
+        const customSettings = await loadProjectSettings(configFileName, context);
+        settings = customSettings || JSON.parse(JSON.stringify(configs));
+    } catch (error) {
+        vscode.window.showErrorMessage(`${error}`);
+        return;
+    }
 
 	try {
 		const response = await axios.post(`${SERVER_URL}/format`, {
@@ -504,7 +509,7 @@ async function exportSettings() {
         filters: { 'JSON': ['json'] },
         defaultUri: vscode.Uri.file(path.join(
             vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '',
-            'yourExtensionSettings.json'
+            configFileName
         )),
         saveLabel: "Export Settings"
     });
@@ -523,57 +528,36 @@ async function exportSettings() {
     }
 }
 
-async function importSettings() {
-    const uris = await vscode.window.showOpenDialog({
-        filters: { 'JSON': ['json'] },
-        canSelectMany: false,
-        openLabel: "Import Settings"
-    });
+async function loadProjectSettings(filename: string, context: vscode.ExtensionContext) {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
-    if (uris?.[0]) {
-        try {
-            const data = fs.readFileSync(uris[0].fsPath, 'utf8');
-            let settings;
-            try {
-                settings = JSON.parse(data);
-            } catch (error) {
-                vscode.window.showErrorMessage(
-                    `Failed to parse settings file: ${error instanceof Error ? error.message : String(error)}`
-                );
-                return;
-            }
-
-            if (!validateSettings(settings)) {
-                vscode.window.showErrorMessage("Invalid or corrupted settings file.");
-                return;
-            }
-
-            for (const [key, value] of Object.entries(settings)) {
-                if (typeof value === 'object') {
-                    for (const [key2, value2] of Object.entries(value!)) {
-                        await vscode.workspace
-                            .getConfiguration('codestyletest')
-                            .update(`${key}.${key2}`, value2, vscode.ConfigurationTarget.Global);
-                    }
-                } else {
-                    await vscode.workspace
-                        .getConfiguration('codestyletest')
-                        .update(key, value, vscode.ConfigurationTarget.Global);
-                }
-            }
-
-            vscode.window.showInformationMessage('Settings imported!');
-        } catch (error) {
-            vscode.window.showErrorMessage(
-                `Failed to read settings file: ${error instanceof Error ? error.message : String(error)}`
-            );
-        }
+    if (!workspaceFolder) {
+        return;
     }
+
+    const filePath = path.join(workspaceFolder.uri.fsPath, filename);
+
+
+    let json;
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        json = JSON.parse(content);
+    } catch { return; }
+
+    if (!validateSettings(json, context)) {
+        throw new Error("The settings configurations file is invalid.");
+    }
+
+    return json;
 }
 
-function validateSettings(settings: any): boolean {
-    const schema = require('../resources/settings-schema.json');
+function validateSettings(settings: any, context: vscode.ExtensionContext): boolean {
+    const schema = require(path.join(context.extensionPath, 'resources', 'settings-schema.json'));
     const validate = ajv.compile(schema);
 
-    return validate(settings);
+    if (validate(settings)) {
+        return true;
+    } else {
+        return false;
+    }
 }

@@ -39,11 +39,6 @@
         "command": "codestyletest.exportSettings",
         "title": "Export settings to JSON file",
         "category": "Code Style and Smells"
-      },
-      {
-        "command": "codestyletest.importSettings",
-        "title": "Import settings from JSON file",
-        "category": "Code Style and Smells"
       }
     ],
     "configuration": [
@@ -271,9 +266,6 @@
       "view/title": [
         {
           "command": "codestyletest.exportSettings"
-        },
-        {
-          "command": "codestyletest.importSettings"
         }
       ]
     }
