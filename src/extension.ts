@@ -25,7 +25,7 @@ const WS_URL = "ws://localhost:8000";
 const CONNECTION_TIMEOUT = 5000;
 
 const ajv = new Ajv();
-const configFileName = "assistantConfig.json";
+const configFileName = ".assistantConfig";
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
