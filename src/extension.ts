@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
+import Ajv from 'ajv';
 
 interface FormatResponse {
 	formatted_code: string;
@@ -21,6 +23,7 @@ const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
+const ajv = new Ajv();
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -242,6 +245,16 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 			}
 		})
 	);
+
+    // Register the command to export settings
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codestyletest.exportSettings', exportSettings)
+    );
+
+    // Register the command to import settings
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codestyletest.importSettings', importSettings)
+    );
 }
 
 function getCurrentDocument() : vscode.TextDocument | undefined {
@@ -482,4 +495,66 @@ function openPDF(filePath: string) {
             // Try to open in VS Code if available
             vscode.commands.executeCommand('vscode.open', vscode.Uri.file(filePath));
     }
+}
+
+async function exportSettings() {
+    const settings = vscode.workspace.getConfiguration("codestyletest");
+    console.log(JSON.stringify(settings, null, 4))
+    
+    const uri = await vscode.window.showSaveDialog({
+        filters: { 'JSON': ['json'] },
+        defaultUri: vscode.Uri.file(path.join(
+            vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '',
+            'yourExtensionSettings.json'
+        )),
+        saveLabel: "Export Settings"
+    });
+
+    if (uri) {
+        fs.writeFileSync(uri.fsPath, JSON.stringify(settings, null, 4));
+        vscode.window.showInformationMessage('Settings exported!');
+    } else {
+        vscode.window.showErrorMessage('No output path is selected.');
+    }
+}
+
+async function importSettings() {
+    const uris = await vscode.window.showOpenDialog({
+        filters: { 'JSON': ['json'] },
+        canSelectMany: false,
+        openLabel: "Import Settings"
+    });
+
+    if (uris && uris[0]) {
+        const data = fs.readFileSync(uris[0].fsPath, 'utf8');
+        const settings = JSON.parse(data);
+
+        console.log(validateSettings(settings))
+
+        if (!validateSettings(settings)) {
+            vscode.window.showErrorMessage("Invalid or corrupted settings file.");
+            return;
+        }
+
+        for (const [key, value] of Object.entries(settings)) {
+            if (typeof value === 'object') {
+                for (const [key2, value2] of Object.entries(value!)) {
+                    await vscode.workspace.getConfiguration('codestyletest')
+                        .update(`${key}.${key2}`, value2, vscode.ConfigurationTarget.Global);
+                }
+            } else {
+                await vscode.workspace.getConfiguration('codestyletest')
+                    .update(key, value, vscode.ConfigurationTarget.Global);
+            }
+        }
+
+        vscode.window.showInformationMessage('Settings imported!');
+    }
+}
+
+function validateSettings(settings: any): boolean {
+    const schema = require('../resources/settings-schema.json');
+    const validate = ajv.compile(schema);
+
+    return validate(settings);
 }
