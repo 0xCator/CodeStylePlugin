@@ -39,6 +39,11 @@
         "command": "javacodeassistant.refine",
         "title": "Refine Java code",
         "category": "Java Code Assistant"
+      },
+      {
+        "command": "javacodeassistant.exportSettings",
+        "title": "Export settings to JSON file",
+        "category": "Java Code Assistant"
       }
     ],
     "configuration": [
@@ -261,7 +266,14 @@
         "view": "customView",
         "contents": "[Format Java code](command:javacodeassistant.format)\n[Analyze Java code smells](command:javacodeassistant.analyze)\n[Refine Java code](command:javacodeassistant.refine)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codestyletest.exportSettings"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -285,6 +297,7 @@
   },
   "dependencies": {
     "@types/ws": "^8.5.10",
+    "ajv": "^8.17.1",
     "axios": "^1.6.7",
     "pdfmake": "^0.2.20",
     "vscode-languageclient": "^9.0.1",

@@ -1,0 +1,133 @@
+{
+  "type": "object",
+  "properties": {
+    "braceStyle": {
+      "type": "string",
+      "enum": ["break", "attach"],
+      "default": "break"
+    },
+    "spaceAroundOperators": {
+      "type": "boolean",
+      "default": true
+    },
+    "maxLineLength": {
+      "type": "number",
+      "default": 100
+    },
+    "modifierOrder": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["public", "protected", "private", "static", "abstract", "final"]
+          },
+          "uniqueItems": true,
+          "default": ["public", "protected", "private", "abstract", "static", "final"]
+        },
+        "method": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["public", "protected", "private", "static", "abstract", "final", "synchronized", "transient", "volatile"]
+          },
+          "uniqueItems": true,
+          "default": ["public", "protected", "private", "abstract", "static", "final", "synchronized"]
+        }
+      },
+      "required": ["class", "method"],
+      "additionalProperties": false
+    },
+    "namingConventions": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string",
+          "default": "pascalcase"
+        },
+        "method": {
+          "type": "string",
+          "default": "camelcase"
+        },
+        "variable": {
+          "type": "string",
+          "default": "camelcase"
+        },
+        "constant": {
+          "type": "string",
+          "default": "uppercase"
+        },
+        "parameter": {
+          "type": "string",
+          "default": "camelcase"
+        }
+      },
+      "required": ["class", "method", "variable", "constant", "parameter"],
+      "additionalProperties": false
+    },
+    "imports": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "string",
+          "enum": ["sort", "preserve"],
+          "default": "preserve"
+        },
+        "merge": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": ["order", "merge"],
+      "additionalProperties": false
+    },
+    "indents": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "number",
+          "default": 4
+        },
+        "type": {
+          "type": "string",
+          "enum": ["spaces", "tabs"],
+          "default": "spaces"
+        },
+        "switchCaseLabels": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": ["size", "type", "switchCaseLabels"],
+      "additionalProperties": false
+    },
+    "aligns": {
+      "type": "object",
+      "properties": {
+        "afterOpenBracket": {
+          "type": "string",
+          "enum": ["none", "align", "dont_align", "always_break", "block_indent"],
+          "default": "none"
+        },
+        "parametersBeforeAlignment": {
+          "type": "number",
+          "default": 2
+        }
+      },
+      "required": ["afterOpenBracket", "parametersBeforeAlignment"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "braceStyle",
+    "spaceAroundOperators",
+    "maxLineLength",
+    "modifierOrder",
+    "namingConventions",
+    "imports",
+    "indents",
+    "aligns"
+  ],
+  "additionalProperties": false
+}
