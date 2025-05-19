@@ -499,8 +499,7 @@ function openPDF(filePath: string) {
 
 async function exportSettings() {
     const settings = vscode.workspace.getConfiguration("codestyletest");
-    console.log(JSON.stringify(settings, null, 4))
-    
+
     const uri = await vscode.window.showSaveDialog({
         filters: { 'JSON': ['json'] },
         defaultUri: vscode.Uri.file(path.join(
@@ -511,8 +510,14 @@ async function exportSettings() {
     });
 
     if (uri) {
-        fs.writeFileSync(uri.fsPath, JSON.stringify(settings, null, 4));
-        vscode.window.showInformationMessage('Settings exported!');
+        try {
+            fs.writeFileSync(uri.fsPath, JSON.stringify(settings, null, 4));
+            vscode.window.showInformationMessage('Settings exported!');
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to export settings: ${error instanceof Error ? error.message : String(error)}`
+            );
+        }
     } else {
         vscode.window.showErrorMessage('No output path is selected.');
     }
