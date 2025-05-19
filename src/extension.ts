@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
+import Ajv from 'ajv';
 
 interface FormatResponse {
 	formatted_code: string;
@@ -21,6 +23,9 @@ const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
+
+const ajv = new Ajv();
+const configFileName = ".assistantConfig";
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -161,14 +166,14 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
                 case "Format current file":
                     const document = getCurrentDocument();
                     if (document) {
-                        formatCode(document);
+                        formatCode(document, context);
                     }
                 break;
                 case "Format all Java files":
                     getAllJavaFiles().then((javaFiles) => {
                         javaFiles.forEach((fileUri) => {
                             vscode.workspace.openTextDocument(fileUri).then((doc) => {
-                                formatCode(doc);
+                                formatCode(doc, context);
                             });
                         });
                     });
@@ -242,6 +247,11 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 			}
 		})
 	);
+
+    // Register the command to export settings
+    context.subscriptions.push(
+        vscode.commands.registerCommand('codestyletest.exportSettings', exportSettings)
+    );
 }
 
 function getCurrentDocument() : vscode.TextDocument | undefined {
@@ -276,10 +286,18 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 	return javaFiles;
 }
 
-async function formatCode(document: vscode.TextDocument) : Promise<void> {
+async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext) : Promise<void> {
 	const text = document.getText();
 	const configs = vscode.workspace.getConfiguration("codestyletest");
-	const settings = JSON.parse(JSON.stringify(configs));
+
+    let settings;
+    try {
+        const customSettings = await loadProjectSettings(configFileName, context);
+        settings = customSettings || JSON.parse(JSON.stringify(configs));
+    } catch (error) {
+        vscode.window.showErrorMessage(`${error}`);
+        return;
+    }
 
 	try {
 		const response = await axios.post(`${SERVER_URL}/format`, {
@@ -481,5 +499,65 @@ function openPDF(filePath: string) {
         default:
             // Try to open in VS Code if available
             vscode.commands.executeCommand('vscode.open', vscode.Uri.file(filePath));
+    }
+}
+
+async function exportSettings() {
+    const settings = vscode.workspace.getConfiguration("codestyletest");
+
+    const uri = await vscode.window.showSaveDialog({
+        filters: { 'JSON': ['json'] },
+        defaultUri: vscode.Uri.file(path.join(
+            vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '',
+            configFileName
+        )),
+        saveLabel: "Export Settings"
+    });
+
+    if (uri) {
+        try {
+            fs.writeFileSync(uri.fsPath, JSON.stringify(settings, null, 4));
+            vscode.window.showInformationMessage('Settings exported!');
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to export settings: ${error instanceof Error ? error.message : String(error)}`
+            );
+        }
+    } else {
+        vscode.window.showErrorMessage('No output path is selected.');
+    }
+}
+
+async function loadProjectSettings(filename: string, context: vscode.ExtensionContext) {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+    if (!workspaceFolder) {
+        return;
+    }
+
+    const filePath = path.join(workspaceFolder.uri.fsPath, filename);
+
+
+    let json;
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        json = JSON.parse(content);
+    } catch { return; }
+
+    if (!validateSettings(json, context)) {
+        throw new Error("The settings configurations file is invalid.");
+    }
+
+    return json;
+}
+
+function validateSettings(settings: any, context: vscode.ExtensionContext): boolean {
+    const schema = require(path.join(context.extensionPath, 'resources', 'settings-schema.json'));
+    const validate = ajv.compile(schema);
+
+    if (validate(settings)) {
+        return true;
+    } else {
+        return false;
     }
 }
