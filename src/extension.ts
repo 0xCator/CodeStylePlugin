@@ -275,9 +275,6 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
                     return;
                 }
 
-                const configs = vscode.workspace.getConfiguration("javacodeassistant");
-                const settings = JSON.parse(JSON.stringify(configs));
-
                 try {
                     await vscode.window.withProgress({
                         location: vscode.ProgressLocation.Notification,
@@ -286,8 +283,7 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
                     }, async (progress) => {
                         const response = await axios.post(`${SERVER_URL}/refine`, {
                             code: selectedText,
-                            prompt: prompt,
-                            settings: settings
+                            prompt: prompt
                         });
 
                         const refineResponse = response.data as RefinementResponse;
@@ -295,9 +291,14 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 
                         if (refinedCode != null) {
                             const editor = await vscode.window.showTextDocument(document, {preview: false});
-                            editor.edit(editBuilder => {
+                            await editor.edit(editBuilder => {
                                 editBuilder.replace(selection!, refinedCode);
                             });
+
+                            await formatCode(document, context);
+
+                            // Clear the selection after formatting is complete
+                            editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
                         }
                     });
                 } catch (e) {

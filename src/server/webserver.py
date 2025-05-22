@@ -33,7 +33,6 @@ class SmellRequest(BaseModel):
 class RefinementRequest(BaseModel):
     code: str
     prompt: str
-    settings: dict
 
 class CancelRequest(BaseModel):
     websocket_ids: list[str]
@@ -124,7 +123,7 @@ async def analyze_smells(request: SmellRequest):
 @app.post("/refine")
 async def refine_code(request: RefinementRequest):
     try:
-        refined_code = CodeRefinement.start_refinement(request.code, request.prompt, request.settings)
+        refined_code = CodeRefinement.start_refinement(request.code, request.prompt)
         logger.info(f"Refined code: {refined_code}")
         return {"refined_code": refined_code}
     except Exception as e:

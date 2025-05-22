@@ -14,7 +14,7 @@ def clean_code(code):
 
     return cleaned_code
 
-def start_refinement(code, prompt, settings=None):
+def start_refinement(code, prompt):
     cleaned_code = clean_code(code)
     model = CodeRefinement.ModelRunner.ModelRunner(MODEL_PATH)
     refined_code = model.run_model(cleaned_code, prompt)
