@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from CodeStyle import CodeStyle
 from CodeSmell import CodeSmell
+from CodeRefinement import CodeRefinement
 import asyncio
 import json
 import logging
@@ -28,6 +29,10 @@ class FormatRequest(BaseModel):
 class SmellRequest(BaseModel):
     code: str
     websocket_id: str
+
+class RefinementRequest(BaseModel):
+    code: str
+    prompt: str
 
 class CancelRequest(BaseModel):
     websocket_ids: list[str]
@@ -113,6 +118,16 @@ async def analyze_smells(request: SmellRequest):
         logger.error(f"Analysis error: {e}")
         if str(e) == "Analysis cancelled":
             raise HTTPException(status_code=499, detail="Analysis cancelled")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/refine")
+async def refine_code(request: RefinementRequest):
+    try:
+        refined_code = CodeRefinement.start_refinement(request.code, request.prompt)
+        logger.info(f"Refined code: {refined_code}")
+        return {"refined_code": refined_code}
+    except Exception as e:
+        logger.error(f"Refinement error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/cancel")

@@ -15,6 +15,10 @@ interface SmellResponse {
     [key: string]: string[];
 }
 
+interface RefinementResponse {
+    refined_code: string;
+}
+
 type SmellTable = Record<string, Record<string, string[]>>;
 
 let diagCollection: vscode.DiagnosticCollection;
@@ -147,11 +151,11 @@ async function cancelAnalysis(websocketIds: string[]) {
 }
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
-	diagCollection = vscode.languages.createDiagnosticCollection("CodeStyleTest");
+	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
 
 	// Register the command to format code
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codestyletest.format', async () => {
+		vscode.commands.registerCommand('javacodeassistant.format', async () => {
 			const choice = await vscode.window.showQuickPick(
 				["Format current file", "Format all Java files"],
 				{ placeHolder: "Choose an option" }
@@ -184,7 +188,7 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 
 	// Register the command to analyze smells
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codestyletest.analyze', async () => {
+		vscode.commands.registerCommand('javacodeassistant.analyze', async () => {
 			// Cancel any ongoing analysis
 			if (cancellationTokenSource) {
 				cancellationTokenSource.cancel();
@@ -248,9 +252,65 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 		})
 	);
 
+  //Register the command to refine code
+  context.subscriptions.push(
+        vscode.commands.registerCommand('javacodeassistant.refine', async () => {
+            const document = getCurrentDocument();
+            if (document) {
+                // Text has to be a selection
+                const selection = vscode.window.activeTextEditor?.selection;
+                const selectedText = selection ? document.getText(selection) : document.getText();
+
+                if (!selectedText || selectedText.length === 0) {
+                    vscode.window.showErrorMessage("No text selected");
+                    return;
+                }
+
+                const prompt = await vscode.window.showInputBox({
+                    prompt: "Enter a prompt for the code refinement"
+                })
+
+                if (!prompt) {
+                    vscode.window.showErrorMessage("No prompt provided");
+                    return;
+                }
+
+                try {
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: "Generating refinement",
+                        cancellable: false
+                    }, async (progress) => {
+                        const response = await axios.post(`${SERVER_URL}/refine`, {
+                            code: selectedText,
+                            prompt: prompt
+                        });
+
+                        const refineResponse = response.data as RefinementResponse;
+                        const refinedCode: string = refineResponse.refined_code;
+
+                        if (refinedCode != null) {
+                            const editor = await vscode.window.showTextDocument(document, {preview: false});
+                            await editor.edit(editBuilder => {
+                                editBuilder.replace(selection!, refinedCode);
+                            });
+
+                            await formatCode(document, context);
+
+                            // Clear the selection after formatting is complete
+                            editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
+                        }
+                    });
+                } catch (e) {
+                    vscode.window.showErrorMessage(`Error: ${e}`);
+                }
+            }
+        })
+    );
+
     // Register the command to export settings
     context.subscriptions.push(
-        vscode.commands.registerCommand('codestyletest.exportSettings', exportSettings)
+        vscode.commands.registerCommand('javacodeassistant.exportSettings', exportSettings)
     );
 }
 
@@ -288,7 +348,7 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 
 async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext) : Promise<void> {
 	const text = document.getText();
-	const configs = vscode.workspace.getConfiguration("codestyletest");
+	const configs = vscode.workspace.getConfiguration("javacodeassistant");
 
     let settings;
     try {
