@@ -348,7 +348,6 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext) : Promise<void> {
 	const text = document.getText();
 	const configs = vscode.workspace.getConfiguration("javacodeassistant");
-	const settings = JSON.parse(JSON.stringify(configs));
 
     let settings;
     try {

@@ -270,7 +270,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "codestyletest.exportSettings"
+          "command": "javacodeassistant.exportSettings"
         }
       ]
     }
