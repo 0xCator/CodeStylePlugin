@@ -12,13 +12,16 @@ class FormattingVisitor(JavaParserVisitor):
         self.rewriter : TokenStreamRewriter = TokenStreamRewriter(tokens)
         self.config:ConfigClass = config
         self.indent_level: int = 0
+        self.method_type: bool = False
         self.imports = {
             'items': [],
             'start_index': -1,
-            'end_index': -1
+            'end_index': -1,
+            'exists': False
         }
 
     def visitImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
+        self.imports['exists'] = True
         token_stream = self.rewriter.getTokenStream()
         if not self.config.imports["merge"]:
             if token_stream.get(ctx.stop.tokenIndex+1).type in [JavaParser.WS]:
@@ -59,10 +62,9 @@ class FormattingVisitor(JavaParserVisitor):
         parent = ctx.parentCtx
 
         # add new line before class declaration
-        if self.config.imports['merge']:
-            self.rewriter.insertBeforeToken(parent.start, "\n\n")
-        else:
-            self.rewriter.insertBeforeToken(parent.start, "\n")
+        if self.imports['exists']:
+            new_line = "\n\n" if self.config.imports['merge'] else "\n"
+            self.rewriter.insertBeforeToken(parent.start, new_line)
 
         if isinstance(parent, JavaParser.TypeDeclarationContext):
             if parent.classOrInterfaceModifier():
@@ -121,6 +123,8 @@ class FormattingVisitor(JavaParserVisitor):
         if grandparent: 
             self.rewriter.replaceRangeTokens(grandparent.start, ctx.identifier().stop, f"\n{self._get_indent()}{method_signature}")
 
+
+        self.method_type = True
         return self.visitChildren(ctx)
     
     def visitStatement(self, ctx: JavaParser.StatementContext):
@@ -194,7 +198,11 @@ class FormattingVisitor(JavaParserVisitor):
                 self.rewriter.replaceSingleToken(open_brace, "{")
             self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}" + "{")
         
-        self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}")
+        if self.method_type:
+            self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}\n")
+            self.method_type = False
+        else:
+            self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}")
         return self.visitChildren(ctx)
 
     def _apply_bracket_alignment(self, open_paren, parameters, close_paren, parameter_size):
@@ -419,7 +427,8 @@ class FormattingVisitor(JavaParserVisitor):
         self.imports = {
             'items': [],
             'start_index': -1,
-            'end_index': -1
+            'end_index': -1,
+            'exists': False
         }
 
         self.visit(tree)
