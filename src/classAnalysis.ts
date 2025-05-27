@@ -199,13 +199,13 @@ async function analyzeCompositionMembers(
                 continue;
             }
 
-            console.log(`Field: ${field.name}, HoverText: "${hoverText}", ExtractedType: "${fieldType}"`);
+            const typePosition = findTypePositionInField(document, field, fieldType);
 
             // Try to find the definition of the field type
             const definitions = await vscode.commands.executeCommand<vscode.Location[]>(
                 'vscode.executeDefinitionProvider',
                 uri,
-                field.range.start
+                typePosition
             );
 
             if (definitions && definitions.length > 0) {
@@ -214,6 +214,8 @@ async function analyzeCompositionMembers(
                     'vscode.executeDocumentSymbolProvider',
                     typeDefinition.uri
                 );
+
+                console.log(typeSymbols);
 
                 if (typeSymbols) {
                     const typeClass = typeSymbols.find(s => s.name === fieldType);
@@ -245,6 +247,19 @@ async function analyzeCompositionMembers(
             }
         }
     }
+}
+
+function findTypePositionInField(document: vscode.TextDocument, field: vscode.DocumentSymbol, typeName: string): vscode.Position | null {
+    const line = document.lineAt(field.range.start.line);
+    const lineText = line.text;
+    
+    // Find the position of the type name in the line
+    const typeIndex = lineText.indexOf(typeName);
+    if (typeIndex !== -1) {
+        return new vscode.Position(field.range.start.line, typeIndex);
+    }
+    
+    return null;
 }
 
 // Helper functions for parsing symbol information
