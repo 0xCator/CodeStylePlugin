@@ -4,6 +4,7 @@ import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
+import { analyzeJavaClass } from "./classAnalysis";
 import Ajv from 'ajv';
 
 interface FormatResponse {
@@ -152,6 +153,27 @@ async function cancelAnalysis(websocketIds: string[]) {
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('javacodeassistant.getReferences', async () => {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showErrorMessage("No active text editor found.");
+                    return;
+                }
+
+                //Get the current document's uri
+                const document = editor.document;
+                if (document.languageId !== "java") {
+                    vscode.window.showErrorMessage("Active document is not a Java file.");
+                    return;
+                }
+                const uri = document.uri;
+
+                await getClassStructure(uri);
+            }
+        )
+    );
 
 	// Register the command to format code
 	context.subscriptions.push(
@@ -619,5 +641,39 @@ function validateSettings(settings: any, context: vscode.ExtensionContext): bool
         return true;
     } else {
         return false;
+    }
+}
+
+async function getClassStructure(uri: vscode.Uri) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'java') {
+        vscode.window.showErrorMessage('Please open a Java file');
+        return;
+    }
+
+    const analysis = await analyzeJavaClass(editor.document);
+    if (analysis) {
+        // Display results or use them as needed
+        console.log('Class Analysis:', analysis);
+        
+        // Example: Show in output channel
+        const output = vscode.window.createOutputChannel('Java Class Analysis');
+        output.clear();
+        output.appendLine(`Class: ${analysis.className}`);
+        output.appendLine(`\nDirect Methods (${analysis.methods.length}):`);
+        analysis.methods.forEach(m => output.appendLine(`  ${m.visibility} ${m.static ? 'static ' : ''}${m.name}: ${m.type}`));
+        
+        output.appendLine(`\nDirect Fields (${analysis.fields.length}):`);
+        analysis.fields.forEach(f => output.appendLine(`  ${f.visibility} ${f.static ? 'static ' : ''}${f.name}: ${f.type}`));
+        
+        output.appendLine(`\nInherited Members (${analysis.inheritedMembers.length}):`);
+        analysis.inheritedMembers.forEach(m => output.appendLine(`  ${m.name} (from ${m.source})`));
+        
+        output.appendLine(`\nComposition Members (${analysis.compositionMembers.length}):`);
+        analysis.compositionMembers.forEach(m => output.appendLine(`  ${m.name} (${m.source})`));
+        
+        output.show();
+    } else {
+        vscode.window.showErrorMessage('Could not analyze the current Java class');
     }
 }
