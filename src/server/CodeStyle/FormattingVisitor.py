@@ -102,6 +102,16 @@ class FormattingVisitor(JavaParserVisitor):
 
             self.indent_level += 1
 
+            # Add new line before first class variable if it exists
+            first_member = None
+            for child in class_body.children:
+                if isinstance(child, JavaParser.ClassBodyDeclarationContext):
+                    if child.memberDeclaration() and not isinstance(child.memberDeclaration().methodDeclaration(), JavaParser.MethodDeclarationContext):
+                        first_member = child
+                        break
+            
+            if first_member:
+                self.rewriter.insertBeforeToken(first_member.start, f"\n{self._get_indent()}")
         
         return self.visitChildren(ctx)
     
