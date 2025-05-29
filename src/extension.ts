@@ -4,7 +4,7 @@ import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
-import { analyzeJavaClass } from "./classAnalysis";
+import { analyzeJavaClass, getClassSymbol, getMethodtoCursor } from "./classAnalysis";
 import Ajv from 'ajv';
 
 interface FormatResponse {
@@ -170,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
                 }
                 const uri = document.uri;
 
-                await getClassStructure(uri);
+                await getCurrentMethod(uri);
             }
         )
     );
@@ -676,4 +676,16 @@ async function getClassStructure(uri: vscode.Uri) {
     } else {
         vscode.window.showErrorMessage('Could not analyze the current Java class');
     }
+}
+
+async function getCurrentMethod(uri: vscode.Uri) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'java') {
+        vscode.window.showErrorMessage('Please open a Java file');
+        return;
+    }
+
+    const cursorPos = editor.selection.active;
+    
+    const method = await getMethodtoCursor(editor, cursorPos);
 }

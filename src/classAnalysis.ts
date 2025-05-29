@@ -23,18 +23,8 @@ interface ClassAnalysis {
 
 export async function analyzeJavaClass(document: vscode.TextDocument): Promise<ClassAnalysis | null> {
     try {
-        // Get document symbols
-        const documentSymbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-            'vscode.executeDocumentSymbolProvider',
-            document.uri
-        );
-
-        if (!documentSymbols) {
-            return null;
-        }
-
         // Find the first class symbol (assuming single class per file)
-        const classSymbol = documentSymbols.find(symbol => symbol.kind === vscode.SymbolKind.Class);
+        const classSymbol = await getClassSymbol(document);
         if (!classSymbol) {
             return null;
         }
@@ -67,6 +57,39 @@ export async function analyzeJavaClass(document: vscode.TextDocument): Promise<C
         console.error('Error analyzing Java class:', error);
         return null;
     }
+}
+
+export async function getMethodtoCursor(editor: vscode.TextEditor, cursorPos: vscode.Position): Promise<String | null> {
+    const document = editor.document;
+    const classSymbol = await getClassSymbol(document);
+    if (!classSymbol) {
+        return null;
+    }
+
+    for (const child of classSymbol.children) {
+        if (child.kind === vscode.SymbolKind.Method && child.range.contains(cursorPos)) {
+            const methodText = editor.document.getText(new vscode.Range(child.range.start, cursorPos));
+            console.log("Current method:", methodText);
+            return methodText;
+        }
+    }
+
+    return null;
+}
+
+export async function getClassSymbol(document: vscode.TextDocument): Promise<vscode.DocumentSymbol | undefined> {
+    const documentSymbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+            'vscode.executeDocumentSymbolProvider',
+            document.uri
+        );
+
+    if (!documentSymbols) {
+        return undefined;
+    }
+
+    // Find the first class symbol (assuming single class per file)
+    const classSymbol = documentSymbols.find(symbol => symbol.kind === vscode.SymbolKind.Class);
+    return classSymbol;
 }
 
 async function getTypeHierarchy(uri: vscode.Uri, position: vscode.Position): Promise<vscode.TypeHierarchyItem[] | null> {
