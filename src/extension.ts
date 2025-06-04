@@ -4,7 +4,7 @@ import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
-import { analyzeJavaClass, getClassSymbol, getMethodtoCursor } from "./classAnalysis";
+import { getCurrentContext, getMethodtoCursor } from "./classAnalysis";
 import Ajv from 'ajv';
 
 interface FormatResponse {
@@ -18,6 +18,10 @@ interface SmellResponse {
 
 interface RefinementResponse {
     refined_code: string;
+}
+
+interface CompletionResponse {
+    completion: string;
 }
 
 type SmellTable = Record<string, Record<string, string[]>>;
@@ -155,24 +159,7 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('javacodeassistant.getReferences', async () => {
-                const editor = vscode.window.activeTextEditor;
-                if (!editor) {
-                    vscode.window.showErrorMessage("No active text editor found.");
-                    return;
-                }
-
-                //Get the current document's uri
-                const document = editor.document;
-                if (document.languageId !== "java") {
-                    vscode.window.showErrorMessage("Active document is not a Java file.");
-                    return;
-                }
-                const uri = document.uri;
-
-                await getCurrentMethod(uri);
-            }
-        )
+        vscode.commands.registerCommand('javacodeassistant.generateCompletion', completeCode)
     );
 
 	// Register the command to format code
@@ -644,48 +631,34 @@ function validateSettings(settings: any, context: vscode.ExtensionContext): bool
     }
 }
 
-async function getClassStructure(uri: vscode.Uri) {
+async function completeCode(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'java') {
-        vscode.window.showErrorMessage('Please open a Java file');
+    if (!editor) {
+        vscode.window.showErrorMessage("No active text editor found.");
         return;
     }
 
-    const analysis = await analyzeJavaClass(editor.document);
-    if (analysis) {
-        // Display results or use them as needed
-        console.log('Class Analysis:', analysis);
-        
-        // Example: Show in output channel
-        const output = vscode.window.createOutputChannel('Java Class Analysis');
-        output.clear();
-        output.appendLine(`Class: ${analysis.className}`);
-        output.appendLine(`\nDirect Methods (${analysis.methods.length}):`);
-        analysis.methods.forEach(m => output.appendLine(`  ${m.visibility} ${m.static ? 'static ' : ''}${m.name}: ${m.type}`));
-        
-        output.appendLine(`\nDirect Fields (${analysis.fields.length}):`);
-        analysis.fields.forEach(f => output.appendLine(`  ${f.visibility} ${f.static ? 'static ' : ''}${f.name}: ${f.type}`));
-        
-        output.appendLine(`\nInherited Members (${analysis.inheritedMembers.length}):`);
-        analysis.inheritedMembers.forEach(m => output.appendLine(`  ${m.name} (from ${m.source})`));
-        
-        output.appendLine(`\nComposition Members (${analysis.compositionMembers.length}):`);
-        analysis.compositionMembers.forEach(m => output.appendLine(`  ${m.name} (${m.source})`));
-        
-        output.show();
-    } else {
-        vscode.window.showErrorMessage('Could not analyze the current Java class');
-    }
-}
-
-async function getCurrentMethod(uri: vscode.Uri) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'java') {
-        vscode.window.showErrorMessage('Please open a Java file');
+    //Get the current document's uri
+    const document = editor.document;
+    if (document.languageId !== "java") {
+        vscode.window.showErrorMessage("Active document is not a Java file.");
         return;
     }
 
     const cursorPos = editor.selection.active;
-    
-    const method = await getMethodtoCursor(editor, cursorPos);
+    const context = await getCurrentContext(document);
+    const code = await getMethodtoCursor(editor, cursorPos);
+
+    if (!code || !context) {
+        return;
+    }
+
+    try {
+        const response = await axios.post(`${SERVER_URL}/autocomplete`, {
+            code: code,
+            context: context
+        });
+
+
+    } catch(e) {}
 }

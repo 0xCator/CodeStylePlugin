@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from CodeStyle import CodeStyle
 from CodeSmell import CodeSmell
 from CodeRefinement import CodeRefinement
+from AutoComplete.AutoComplete import AutoComplete
 import asyncio
 import json
 import logging
@@ -34,6 +35,10 @@ class RefinementRequest(BaseModel):
     code: str
     prompt: str
 
+class CompletionRequest(BaseModel):
+    code: str
+    context: dict
+
 class CancelRequest(BaseModel):
     websocket_ids: list[str]
 
@@ -43,10 +48,14 @@ main_event_loop = None
 
 analysis_tasks: dict[str, bool] = {}
 
+autocomplete_instance = None
+
 @app.on_event("startup")
 async def startup_event():
     global main_event_loop
     main_event_loop = asyncio.get_event_loop()
+    global autocomplete_instance
+    autocomplete_instance = AutoComplete()
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -128,6 +137,16 @@ async def refine_code(request: RefinementRequest):
         return {"refined_code": refined_code}
     except Exception as e:
         logger.error(f"Refinement error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/autocomplete")
+async def autocomplete_code(request: CompletionRequest):
+    try:
+        completed_code = autocomplete_instance.predict_completion(request.code, request.context)
+        logger.info(f"Predicted output: {completed_code}")
+        return {"completion": completed_code}
+    except Exception as e:
+        logger.error(f"Completion error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/cancel")

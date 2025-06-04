@@ -49,8 +49,8 @@
         "category": "Java Code Assistant"
       },
       {
-        "command": "javacodeassistant.getReferences",
-        "title": "Get Java references",
+        "command": "javacodeassistant.generateCompletion",
+        "title": "Generate completion",
         "category": "Java Code Assistant"
       }
     ],

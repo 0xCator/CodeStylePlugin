@@ -21,7 +21,17 @@ interface ClassAnalysis {
     interfaces: string[];
 }
 
-export async function analyzeJavaClass(document: vscode.TextDocument): Promise<ClassAnalysis | null> {
+interface SimpleClassAnalysis {
+    className: string;
+    methods: string[];
+    fields: string[];
+    compositionMembers: string[];
+    inheritedMembers: string[];
+    superClass?: string;
+    interfaces: string[];
+}
+
+export async function getCurrentContext(document: vscode.TextDocument): Promise<SimpleClassAnalysis | null> {
     try {
         // Find the first class symbol (assuming single class per file)
         const classSymbol = await getClassSymbol(document);
@@ -52,11 +62,26 @@ export async function analyzeJavaClass(document: vscode.TextDocument): Promise<C
         // Analyze composition members (fields that are objects with their own methods)
         await analyzeCompositionMembers(document.uri, classSymbol, analysis);
 
-        return analysis;
+        return {
+            className: analysis.className,
+            methods: analysis.methods.map(formatMember),
+            fields: analysis.fields.map(formatMember),
+            compositionMembers: analysis.compositionMembers.map(formatMember),
+            inheritedMembers: analysis.inheritedMembers.map(formatMember),
+            superClass: analysis.superClass,
+            interfaces: analysis.interfaces
+        };
+
     } catch (error) {
         console.error('Error analyzing Java class:', error);
         return null;
     }
+}
+
+function formatMember(member: ClassMember): string {
+    const visibility = member.visibility === 'package' ? '' : `${member.visibility} `;
+    const staticModifier = member.static ? 'static ' : '';
+    return `${visibility}${staticModifier}${member.type} ${member.name}`;
 }
 
 export async function getMethodtoCursor(editor: vscode.TextEditor, cursorPos: vscode.Position): Promise<String | null> {
@@ -69,7 +94,6 @@ export async function getMethodtoCursor(editor: vscode.TextEditor, cursorPos: vs
     for (const child of classSymbol.children) {
         if (child.kind === vscode.SymbolKind.Method && child.range.contains(cursorPos)) {
             const methodText = editor.document.getText(new vscode.Range(child.range.start, cursorPos));
-            console.log("Current method:", methodText);
             return methodText;
         }
     }
@@ -138,7 +162,7 @@ async function analyzeDirectMembers(classSymbol: vscode.DocumentSymbol, analysis
             source: analysis.className
         };
 
-        if (member.kind === 'method') {
+        if (child.kind === vscode.SymbolKind.Method) {
             member.signature = hoverText || child.detail || '';
             analysis.methods.push(member);
         } else if (child.kind === vscode.SymbolKind.Field || child.kind === vscode.SymbolKind.Property) {
@@ -237,8 +261,6 @@ async function analyzeCompositionMembers(
                     'vscode.executeDocumentSymbolProvider',
                     typeDefinition.uri
                 );
-
-                console.log(typeSymbols);
 
                 if (typeSymbols) {
                     const typeClass = typeSymbols.find(s => s.name === fieldType);
