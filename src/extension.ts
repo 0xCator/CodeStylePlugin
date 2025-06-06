@@ -4,6 +4,7 @@ import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
+import { InlineCompletionProvider } from "./InlineCompletionProvider";
 import Ajv from 'ajv';
 
 interface FormatResponse {
@@ -19,11 +20,16 @@ interface RefinementResponse {
     refined_code: string;
 }
 
+interface CompletionResponse {
+    completion: string;
+}
+
 type SmellTable = Record<string, Record<string, string[]>>;
 
 let diagCollection: vscode.DiagnosticCollection;
+let completionProvider: InlineCompletionProvider;
 let outputChannel: vscode.OutputChannel;
-const SERVER_URL = "http://localhost:8000";
+export const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
@@ -152,6 +158,12 @@ async function cancelAnalysis(websocketIds: string[]) {
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
+    completionProvider = new InlineCompletionProvider();
+
+    // Autocompletion setup
+    context.subscriptions.push(
+        vscode.languages.registerInlineCompletionItemProvider( {language: 'java'}, completionProvider)
+    );
 
 	// Register the command to format code
 	context.subscriptions.push(
@@ -620,4 +632,24 @@ function validateSettings(settings: any, context: vscode.ExtensionContext): bool
     } else {
         return false;
     }
+}
+
+export function deactivate() {
+    if (cancellationTokenSource) {
+        cancellationTokenSource.dispose();
+    }
+
+    // Close all active WebSocket connections
+    activeWebSockets.forEach((ws) => {
+        ws.close();
+    });
+    
+    // Clear the diagnostic collection
+    diagCollection.clear();
+
+    // Dispose of the diagnostic collection
+    diagCollection.dispose();
+
+    // Dispose of the completion provider
+    completionProvider.dispose();
 }

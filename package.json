@@ -1,13 +1,16 @@
 {
   "name": "javacodeassistant",
-  "displayName": "javacodeassistant",
-  "description": "",
+  "displayName": "CodeGator",
+  "description": "Java Code Assistant for Visual Studio Code",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.98.0"
   },
   "categories": [
     "Other"
+  ],
+  "extensionDependencies": [
+    "redhat.java"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -43,6 +46,11 @@
       {
         "command": "javacodeassistant.exportSettings",
         "title": "Export settings to JSON file",
+        "category": "Java Code Assistant"
+      },
+      {
+        "command": "javacodeassistant.generateCompletion",
+        "title": "Generate completion",
         "category": "Java Code Assistant"
       }
     ],
@@ -247,7 +255,7 @@
       "activitybar": [
         {
           "id": "extensionTab",
-          "title": "Java Code Assistant",
+          "title": "CodeGator",
           "icon": "resources/javacodeassistant.svg"
         }
       ]
@@ -256,7 +264,7 @@
       "extensionTab": [
         {
           "id": "customView",
-          "name": "Java Code Assistant",
+          "name": "CodeGator",
           "icon": "resources/javacodeassistant.svg"
         }
       ]
