@@ -4,7 +4,7 @@ import * as fs from "fs";
 import axios from 'axios';
 import WebSocket from 'ws';
 import { pdfGenerator } from './pdfGenerator';
-import { getCurrentContext, getMethodtoCursor } from "./classAnalysis";
+import { InlineCompletionProvider } from "./InlineCompletionProvider";
 import Ajv from 'ajv';
 
 interface FormatResponse {
@@ -27,8 +27,9 @@ interface CompletionResponse {
 type SmellTable = Record<string, Record<string, string[]>>;
 
 let diagCollection: vscode.DiagnosticCollection;
+let completionProvider: InlineCompletionProvider;
 let outputChannel: vscode.OutputChannel;
-const SERVER_URL = "http://localhost:8000";
+export const SERVER_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 
 const CONNECTION_TIMEOUT = 5000;
@@ -157,9 +158,11 @@ async function cancelAnalysis(websocketIds: string[]) {
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
+    completionProvider = new InlineCompletionProvider();
 
+    // Autocompletion setup
     context.subscriptions.push(
-        vscode.commands.registerCommand('javacodeassistant.generateCompletion', completeCode)
+        vscode.languages.registerInlineCompletionItemProvider( {language: 'java'}, completionProvider)
     );
 
 	// Register the command to format code
@@ -631,34 +634,22 @@ function validateSettings(settings: any, context: vscode.ExtensionContext): bool
     }
 }
 
-async function completeCode(): Promise<void> {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-        vscode.window.showErrorMessage("No active text editor found.");
-        return;
+export function deactivate() {
+    if (cancellationTokenSource) {
+        cancellationTokenSource.dispose();
     }
 
-    //Get the current document's uri
-    const document = editor.document;
-    if (document.languageId !== "java") {
-        vscode.window.showErrorMessage("Active document is not a Java file.");
-        return;
-    }
+    // Close all active WebSocket connections
+    activeWebSockets.forEach((ws) => {
+        ws.close();
+    });
+    
+    // Clear the diagnostic collection
+    diagCollection.clear();
 
-    const cursorPos = editor.selection.active;
-    const context = await getCurrentContext(document);
-    const code = await getMethodtoCursor(editor, cursorPos);
+    // Dispose of the diagnostic collection
+    diagCollection.dispose();
 
-    if (!code || !context) {
-        return;
-    }
-
-    try {
-        const response = await axios.post(`${SERVER_URL}/autocomplete`, {
-            code: code,
-            context: context
-        });
-
-
-    } catch(e) {}
+    // Dispose of the completion provider
+    completionProvider.dispose();
 }

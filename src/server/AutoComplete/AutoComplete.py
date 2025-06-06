@@ -49,6 +49,7 @@ class AutoComplete:
         # Remove prompt from output
         if outputs:
             outputs = outputs[len(prompt):].strip()
+            outputs = outputs[len(code):].strip()  # Remove the original code part
 
         # return outputs
         return outputs if outputs else ""

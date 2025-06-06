@@ -21,7 +21,7 @@ interface ClassAnalysis {
     interfaces: string[];
 }
 
-interface SimpleClassAnalysis {
+export interface SimpleClassAnalysis {
     className: string;
     methods: string[];
     fields: string[];
@@ -84,7 +84,7 @@ function formatMember(member: ClassMember): string {
     return `${visibility}${staticModifier}${member.type} ${member.name}`;
 }
 
-export async function getMethodtoCursor(editor: vscode.TextEditor, cursorPos: vscode.Position): Promise<String | null> {
+export async function getMethodtoCursor(editor: vscode.TextEditor, cursorPos: vscode.Position): Promise<string | null> {
     const document = editor.document;
     const classSymbol = await getClassSymbol(document);
     if (!classSymbol) {

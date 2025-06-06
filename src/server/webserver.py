@@ -143,7 +143,8 @@ async def refine_code(request: RefinementRequest):
 async def autocomplete_code(request: CompletionRequest):
     try:
         completed_code = autocomplete_instance.predict_completion(request.code, request.context)
-        logger.info(f"Predicted output: {completed_code}")
+        logger.info(f"Autocomplete prediction:")
+        logger.info(f"{completed_code}")
         return {"completion": completed_code}
     except Exception as e:
         logger.error(f"Completion error: {e}")
