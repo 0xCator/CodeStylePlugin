@@ -29,13 +29,14 @@ type SmellTable = Record<string, Record<string, string[]>>;
 let diagCollection: vscode.DiagnosticCollection;
 let completionProvider: InlineCompletionProvider;
 let outputChannel: vscode.OutputChannel;
-export const SERVER_URL = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000";
+export let SERVER_URL: string;
+let WS_URL: string;
+let CANCEL_URL: string;
 
 const CONNECTION_TIMEOUT = 5000;
 
 const ajv = new Ajv();
-const configFileName = ".assistantConfig";
+const configFileName = ".assistantConfig.json";
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -55,8 +56,6 @@ const activeFilesProgress: Map<string, FileProgress> = new Map();
 
 // Add cancellation token source
 let cancellationTokenSource: vscode.CancellationTokenSource | undefined;
-
-const CANCEL_URL = `${SERVER_URL}/cancel`;
 
 function generateWebSocketId(): string {
     return Math.random().toString(36).substring(2, 15);
@@ -157,6 +156,12 @@ async function cancelAnalysis(websocketIds: string[]) {
 }
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
+    // Get the server URL from the configuration or project settings
+    SERVER_URL = await getServerURL(context);
+    //The WebSocket URL is the same as the server URL but 'ws' instead of 'http' or 'https'
+    WS_URL = SERVER_URL.replace(/^http/, 'ws');
+    CANCEL_URL = `${SERVER_URL}/cancel`;
+
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
     completionProvider = new InlineCompletionProvider();
 
@@ -575,7 +580,7 @@ function openPDF(filePath: string) {
 }
 
 async function exportSettings() {
-    const settings = vscode.workspace.getConfiguration("codestyletest");
+    const settings = vscode.workspace.getConfiguration("javacodeassistant");
 
     const uri = await vscode.window.showSaveDialog({
         filters: { 'JSON': ['json'] },
@@ -598,6 +603,26 @@ async function exportSettings() {
     } else {
         vscode.window.showErrorMessage('No output path is selected.');
     }
+}
+
+async function getServerURL(context: vscode.ExtensionContext): Promise<string> {
+    //Check if the file exists using loadProjectSettings()
+    const projectSettings = await loadProjectSettings(configFileName, context);
+
+    if (projectSettings && projectSettings.serverUrl) {
+        return projectSettings.serverUrl;
+    }
+
+    // If not found, get it from the configuration
+    const config = vscode.workspace.getConfiguration("javacodeassistant");
+    const serverUrl = config.get<string>("serverUrl");
+
+    if (!serverUrl) {
+        // Use a default URL if not set
+        return "http://localhost:8000";
+    }
+
+    return serverUrl;
 }
 
 async function loadProjectSettings(filename: string, context: vscode.ExtensionContext) {
