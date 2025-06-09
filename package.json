@@ -47,11 +47,6 @@
         "command": "javacodeassistant.exportSettings",
         "title": "Export settings to JSON file",
         "category": "Java Code Assistant"
-      },
-      {
-        "command": "javacodeassistant.generateCompletion",
-        "title": "Generate completion",
-        "category": "Java Code Assistant"
       }
     ],
     "configuration": [
