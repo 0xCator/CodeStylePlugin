@@ -433,6 +433,39 @@ class FormattingVisitor(JavaParserVisitor):
                 self.rewriter.insertAfter(double_colon.tokenIndex, " ")
         return self.visitChildren(ctx)
 
+    def visitConstructorDeclaration(self, ctx: JavaParser.ConstructorDeclarationContext):
+        constructor_name = ctx.identifier().getText()
+        modifiers = []
+        parent = ctx.parentCtx
+        grandparent = None
+        
+        if isinstance(parent, JavaParser.MemberDeclarationContext):
+            grandparent = parent.parentCtx
+            if isinstance(grandparent, JavaParser.ClassBodyDeclarationContext):
+                if grandparent.modifier():
+                    modifiers = [mod.getText() for mod in grandparent.modifier()]
+                    modifiers = self._sort_modifiers(modifiers, self.config.method_modifier_order)
+
+        constructor_signature = f"{' '.join(modifiers)} {constructor_name}".strip()
+
+        if grandparent:
+            self.rewriter.replaceRangeTokens(grandparent.start, ctx.identifier().stop, f"\n{self._get_indent()}{constructor_signature}")
+
+        # Handle constructor body
+        if ctx.constructorBody:
+            open_brace = ctx.constructorBody.LBRACE().symbol
+            close_brace = ctx.constructorBody.RBRACE().symbol
+
+            if self.config.brace_style == "attach":
+                self.rewriter.replaceSingleToken(open_brace, " {")
+            else:
+                self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}" + "{")
+
+            self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}")
+
+        self.method_type = True
+        return self.visitChildren(ctx)
+
     def get_formatted_code(self, tree):
         self.imports = {
             'items': [],
