@@ -256,7 +256,7 @@
         {
           "id": "extensionTab",
           "title": "CodeGator",
-          "icon": "resources/javacodeassistant.svg"
+          "icon": "resources/codegator.svg"
         }
       ]
     },
@@ -265,7 +265,7 @@
         {
           "id": "customView",
           "name": "CodeGator",
-          "icon": "resources/javacodeassistant.svg"
+          "icon": "resources/codegator.svg"
         }
       ]
     },
