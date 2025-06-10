@@ -2,7 +2,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 class ModelRunner:
     def __init__(self, model_name):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         self.cancelled = False
 

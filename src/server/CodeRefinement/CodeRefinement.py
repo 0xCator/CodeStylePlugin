@@ -5,17 +5,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
+class CodeRefiner:
+    def __init__(self):
+        MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
+        assert os.path.exists(MODEL_PATH), f"Model path does not exist: {MODEL_PATH}"
+        self.model = CodeRefinement.ModelRunner.ModelRunner(MODEL_PATH)
 
-def clean_code(code):
-    cleaned_code = re.sub(r'[\t\n\r]+', '', code)
-    cleaned_code = re.sub(r' {2,}', ' ', cleaned_code)
-    cleaned_code = re.sub(r'^ +', '', cleaned_code, flags=re.M)
+    def clean_code(self, code):
+        cleaned_code = re.sub(r'[\t\n\r]+', '', code)
+        cleaned_code = re.sub(r' {2,}', ' ', cleaned_code)
+        cleaned_code = re.sub(r'^ +', '', cleaned_code, flags=re.M)
+        return cleaned_code
 
-    return cleaned_code
-
-def start_refinement(code, prompt):
-    cleaned_code = clean_code(code)
-    model = CodeRefinement.ModelRunner.ModelRunner(MODEL_PATH)
-    refined_code = model.run_model(cleaned_code, prompt)
-    return refined_code
+    def start_refinement(self, code, prompt):
+        cleaned_code = self.clean_code(code)
+        refined_code = self.model.run_model(cleaned_code, prompt)
+        return refined_code
