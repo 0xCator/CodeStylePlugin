@@ -377,37 +377,43 @@ async function formatCode(document: vscode.TextDocument, context: vscode.Extensi
     }
 
 	try {
-		const response = await axios.post(`${SERVER_URL}/format`, {
-			code: text,
-			settings: settings
-		});
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Formatting code...",
+            cancellable: false
+        }, async () => {
+            const response = await axios.post(`${SERVER_URL}/format`, {
+                code: text,
+                settings: settings
+            });
 
-		const formatResponse = response.data as FormatResponse;
-		const formattedCode: string = formatResponse.formatted_code;
-		const errors: string[] = formatResponse.errors;
+            const formatResponse = response.data as FormatResponse;
+            const formattedCode: string = formatResponse.formatted_code;
+            const errors: string[] = formatResponse.errors;
 
-		if (formattedCode != null) {
-			const editor = await vscode.window.showTextDocument(document, {preview: false});
-			editor.edit(editBuilder => {
-				editBuilder.replace(new vscode.Range(0, 0, document.lineCount, 0), formattedCode);
-			});
-		}
+            if (formattedCode != null) {
+                const editor = await vscode.window.showTextDocument(document, {preview: false});
+                editor.edit(editBuilder => {
+                    editBuilder.replace(new vscode.Range(0, 0, document.lineCount, 0), formattedCode);
+                });
+            }
 
-		let diagnostics: vscode.Diagnostic[] = [];
-		diagCollection.clear();
+            let diagnostics: vscode.Diagnostic[] = [];
+            diagCollection.clear();
 
-		errors.forEach((error) => {
-			let result = extractError(error);
+            errors.forEach((error) => {
+                let result = extractError(error);
 
-			if (result) {
-				let range = new vscode.Range(result.line-1, result.column, result.line-1, result.column + result.identifier.length);
-				let message = error.split(":")[1];
-				let diagnostic = new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning);
-				diagnostics.push(diagnostic);
-			}
-		});
+                if (result) {
+                    let range = new vscode.Range(result.line-1, result.column, result.line-1, result.column + result.identifier.length);
+                    let message = error.split(":")[1];
+                    let diagnostic = new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning);
+                    diagnostics.push(diagnostic);
+                }
+            });
 
-		diagCollection.set(document.uri, diagnostics);
+            diagCollection.set(document.uri, diagnostics);
+        });
 	}
 	catch (e) {
 		vscode.window.showErrorMessage(`Error: ${e}`);
