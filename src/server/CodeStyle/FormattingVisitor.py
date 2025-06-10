@@ -461,10 +461,11 @@ class FormattingVisitor(JavaParserVisitor):
             else:
                 self.rewriter.replaceSingleToken(open_brace, f"\n{self._get_indent()}" + "{")
 
-            self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}")
+            self.rewriter.replaceSingleToken(close_brace, f"\n{self._get_indent()}" + "}\n")
 
         self.method_type = True
         return self.visitChildren(ctx)
+    
 
     def get_formatted_code(self, tree):
         self.imports = {
