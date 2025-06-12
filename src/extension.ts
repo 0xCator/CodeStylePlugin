@@ -29,13 +29,14 @@ type SmellTable = Record<string, Record<string, string[]>>;
 let diagCollection: vscode.DiagnosticCollection;
 let completionProvider: InlineCompletionProvider;
 let outputChannel: vscode.OutputChannel;
-export const SERVER_URL = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000";
+export let SERVER_URL: string;
+let WS_URL: string;
+let CANCEL_URL: string;
 
 const CONNECTION_TIMEOUT = 5000;
 
 const ajv = new Ajv();
-const configFileName = ".assistantConfig";
+const configFileName = ".assistantConfig.json";
 
 const activeWebSockets: Map<string, WebSocket> = new Map();
 let progressBarPromise: Thenable<void> | undefined;
@@ -55,8 +56,6 @@ const activeFilesProgress: Map<string, FileProgress> = new Map();
 
 // Add cancellation token source
 let cancellationTokenSource: vscode.CancellationTokenSource | undefined;
-
-const CANCEL_URL = `${SERVER_URL}/cancel`;
 
 function generateWebSocketId(): string {
     return Math.random().toString(36).substring(2, 15);
@@ -157,6 +156,12 @@ async function cancelAnalysis(websocketIds: string[]) {
 }
 
 export async function activate(context: vscode.ExtensionContext) : Promise<void> {
+    // Get the server URL from the configuration or project settings
+    SERVER_URL = await getServerURL(context);
+    //The WebSocket URL is the same as the server URL but 'ws' instead of 'http' or 'https'
+    WS_URL = SERVER_URL.replace(/^http/, 'ws');
+    CANCEL_URL = `${SERVER_URL}/cancel`;
+
 	diagCollection = vscode.languages.createDiagnosticCollection("Java Code Assistant");
     completionProvider = new InlineCompletionProvider();
 
@@ -265,65 +270,172 @@ export async function activate(context: vscode.ExtensionContext) : Promise<void>
 	);
 
   //Register the command to refine code
-  context.subscriptions.push(
-        vscode.commands.registerCommand('javacodeassistant.refine', async () => {
-            const document = getCurrentDocument();
-            if (document) {
-                // Text has to be a selection
-                const selection = vscode.window.activeTextEditor?.selection;
-                const selectedText = selection ? document.getText(selection) : document.getText();
-
-                if (!selectedText || selectedText.length === 0) {
-                    vscode.window.showErrorMessage("No text selected");
-                    return;
-                }
-
-                const prompt = await vscode.window.showInputBox({
-                    prompt: "Enter a prompt for the code refinement"
-                })
-
-                if (!prompt) {
-                    vscode.window.showErrorMessage("No prompt provided");
-                    return;
-                }
-
-                try {
-                    await vscode.window.withProgress({
-                        location: vscode.ProgressLocation.Notification,
-                        title: "Generating refinement",
-                        cancellable: false
-                    }, async (progress) => {
-                        const response = await axios.post(`${SERVER_URL}/refine`, {
-                            code: selectedText,
-                            prompt: prompt
-                        });
-
-                        const refineResponse = response.data as RefinementResponse;
-                        const refinedCode: string = refineResponse.refined_code;
-
-                        if (refinedCode != null) {
-                            const editor = await vscode.window.showTextDocument(document, {preview: false});
-                            await editor.edit(editBuilder => {
-                                editBuilder.replace(selection!, refinedCode);
-                            });
-
-                            await formatCode(document, context);
-
-                            // Clear the selection after formatting is complete
-                            editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
-                        }
-                    });
-                } catch (e) {
-                    vscode.window.showErrorMessage(`Error: ${e}`);
-                }
-            }
-        })
+context.subscriptions.push(
+        vscode.commands.registerCommand('javacodeassistant.refine', () => refineCode(context))
     );
 
     // Register the command to export settings
     context.subscriptions.push(
         vscode.commands.registerCommand('javacodeassistant.exportSettings', exportSettings)
     );
+}
+
+async function refineCode(context: vscode.ExtensionContext) : Promise<void> {
+    const document = getCurrentDocument();
+    if (document) {
+        // Text has to be a selection
+        const selection = vscode.window.activeTextEditor?.selection;
+        const selectedText = selection ? document.getText(selection) : document.getText();
+
+        if (!selection || !selectedText || selectedText.length === 0) {
+            vscode.window.showErrorMessage("No text selected");
+            return;
+        }
+
+        const prompt = await vscode.window.showInputBox({
+            prompt: "Enter a prompt for the code refinement"
+        })
+
+        if (!prompt) {
+            vscode.window.showErrorMessage("No prompt provided");
+            return;
+        }
+
+        const originalContent = document.getText();
+        const originalSelection = selection;
+
+        try {
+            const refinedCode = await requestRefinement(selectedText, prompt);
+
+            if (refinedCode != null) {
+                await applyRefinement(
+                    document,
+                    selection,
+                    refinedCode,
+                    context,
+                    originalContent,
+                    originalSelection
+                );
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage(`Error: ${e}`);
+        }
+    }
+}
+
+async function requestRefinement(code: string, prompt: string): Promise<string | null> {
+    return await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Generating refinement",
+            cancellable: false
+        }, async (progress) => {
+            const response = await axios.post(`${SERVER_URL}/refine`, {
+                code: code,
+                prompt: prompt
+            });
+
+            const refineResponse = response.data as RefinementResponse;
+            return refineResponse.refined_code;
+        });
+}
+
+async function applyRefinement(
+    document: vscode.TextDocument,
+    selection: vscode.Selection,
+    refinedCode: string,
+    context: vscode.ExtensionContext,
+    originalContent: string,
+    originalSelection: vscode.Selection
+) : Promise<void> {
+    const startMarker = `codegator_${Date.now()} `;
+    const endMarker = ` end_codegator_${Date.now()}`;
+    const refinedCodeWithMarkers = `${startMarker}${refinedCode}${endMarker}`;
+
+    const editor = await vscode.window.showTextDocument(document, {preview: false});
+    await editor.edit(editBuilder => {
+        editBuilder.replace(selection, refinedCodeWithMarkers);
+    });
+
+    await formatCode(document, context, false);
+
+    // Find the start and end markers in the document
+    const formattedText = document.getText();
+    const startMarkerIndex = formattedText.indexOf(startMarker);
+    const endMarkerIndex = formattedText.indexOf(endMarker);
+
+    if (startMarkerIndex === -1 || endMarkerIndex === -1) {
+        return;
+    }
+
+    // Remove the markers
+    await editor.edit(editBuilder => {
+        // Remove end marker first (so start position doesn't shift)
+        editBuilder.delete(new vscode.Range(
+            document.positionAt(endMarkerIndex), 
+            document.positionAt(endMarkerIndex + endMarker.length)
+        ));
+        // Remove start marker
+        editBuilder.delete(new vscode.Range(
+            document.positionAt(startMarkerIndex), 
+            document.positionAt(startMarkerIndex + startMarker.length)
+        ));
+    });
+
+    // After removing markers, calculate the range of the refined code
+    const finalStartPos = document.positionAt(startMarkerIndex);
+    const finalEndPos = document.positionAt(endMarkerIndex - startMarker.length);
+    const finalRefinedRange = new vscode.Range(finalStartPos, finalEndPos);
+
+    handleRefinementConfirmation(editor, document, finalRefinedRange, originalContent, originalSelection);
+}
+
+async function handleRefinementConfirmation(
+    editor: vscode.TextEditor, 
+    document: vscode.TextDocument, 
+    refinedRange: vscode.Range, 
+    originalContent: string, 
+    originalSelection: vscode.Selection
+) : Promise<void> {
+    // Create a decoration type for highlighting
+    const highlightDecorationType = vscode.window.createTextEditorDecorationType({
+        backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground'),
+        border: '1px solid',
+        borderColor: new vscode.ThemeColor('editor.findMatchHighlightBorder'),
+    });
+
+    // Apply the highlight
+    editor.setDecorations(highlightDecorationType, [refinedRange]);
+
+    // Select the refined code so user can see it clearly
+    editor.selection = new vscode.Selection(refinedRange.start, refinedRange.end);
+    editor.revealRange(refinedRange, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+
+    const result = await vscode.window.showInformationMessage(
+        'Code refinement applied. Accept changes?',
+        { modal: false },
+        'Accept',
+        'Reject'
+    );
+
+    if (result === 'Accept') {
+        // Clean up - remove highlighting
+        highlightDecorationType.dispose();
+    } else if (result === 'Reject') {
+        // Revert to original content
+        await editor.edit(editBuilder => {
+            const fullRange = new vscode.Range(
+                document.positionAt(0),
+                document.positionAt(document.getText().length)
+            );
+            editBuilder.replace(fullRange, originalContent);
+        });
+        
+        // Restore original selection
+        if (originalSelection) {
+            editor.selection = originalSelection;
+        }
+        highlightDecorationType.dispose();
+    }
 }
 
 function getCurrentDocument() : vscode.TextDocument | undefined {
@@ -358,7 +470,7 @@ async function getAllJavaFiles() : Promise<vscode.Uri[]> {
 	return javaFiles;
 }
 
-async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext) : Promise<void> {
+async function formatCode(document: vscode.TextDocument, context: vscode.ExtensionContext, showProg: boolean = true) : Promise<void> {
 	const text = document.getText();
 	const configs = vscode.workspace.getConfiguration("javacodeassistant");
 
@@ -372,37 +484,49 @@ async function formatCode(document: vscode.TextDocument, context: vscode.Extensi
     }
 
 	try {
-		const response = await axios.post(`${SERVER_URL}/format`, {
-			code: text,
-			settings: settings
-		});
+        const doFormat = async () => {
+            const response = await axios.post(`${SERVER_URL}/format`, {
+            code: text,
+            settings: settings
+            });
 
-		const formatResponse = response.data as FormatResponse;
-		const formattedCode: string = formatResponse.formatted_code;
-		const errors: string[] = formatResponse.errors;
+            const formatResponse = response.data as FormatResponse;
+            const formattedCode: string = formatResponse.formatted_code;
+            const errors: string[] = formatResponse.errors;
 
-		if (formattedCode != null) {
-			const editor = await vscode.window.showTextDocument(document, {preview: false});
-			editor.edit(editBuilder => {
-				editBuilder.replace(new vscode.Range(0, 0, document.lineCount, 0), formattedCode);
-			});
-		}
+            if (formattedCode != null) {
+            const editor = await vscode.window.showTextDocument(document, {preview: false});
+            await editor.edit(editBuilder => {
+                editBuilder.replace(new vscode.Range(0, 0, document.lineCount, 0), formattedCode);
+            });
+            }
 
-		let diagnostics: vscode.Diagnostic[] = [];
-		diagCollection.clear();
+            let diagnostics: vscode.Diagnostic[] = [];
+            diagCollection.clear();
 
-		errors.forEach((error) => {
-			let result = extractError(error);
+            errors.forEach((error) => {
+            let result = extractError(error);
 
-			if (result) {
-				let range = new vscode.Range(result.line-1, result.column, result.line-1, result.column + result.identifier.length);
-				let message = error.split(":")[1];
-				let diagnostic = new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning);
-				diagnostics.push(diagnostic);
-			}
-		});
+            if (result) {
+                let range = new vscode.Range(result.line-1, result.column, result.line-1, result.column + result.identifier.length);
+                let message = error.split(":")[1];
+                let diagnostic = new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning);
+                diagnostics.push(diagnostic);
+            }
+            });
 
-		diagCollection.set(document.uri, diagnostics);
+            diagCollection.set(document.uri, diagnostics);
+        };
+
+        if (showProg) {
+            await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Formatting code...",
+            cancellable: false
+            }, doFormat);
+        } else {
+            await doFormat();
+        }
 	}
 	catch (e) {
 		vscode.window.showErrorMessage(`Error: ${e}`);
@@ -575,7 +699,7 @@ function openPDF(filePath: string) {
 }
 
 async function exportSettings() {
-    const settings = vscode.workspace.getConfiguration("codestyletest");
+    const settings = vscode.workspace.getConfiguration("javacodeassistant");
 
     const uri = await vscode.window.showSaveDialog({
         filters: { 'JSON': ['json'] },
@@ -598,6 +722,26 @@ async function exportSettings() {
     } else {
         vscode.window.showErrorMessage('No output path is selected.');
     }
+}
+
+async function getServerURL(context: vscode.ExtensionContext): Promise<string> {
+    //Check if the file exists using loadProjectSettings()
+    const projectSettings = await loadProjectSettings(configFileName, context);
+
+    if (projectSettings && projectSettings.serverUrl) {
+        return projectSettings.serverUrl;
+    }
+
+    // If not found, get it from the configuration
+    const config = vscode.workspace.getConfiguration("javacodeassistant");
+    const serverUrl = config.get<string>("serverUrl");
+
+    if (!serverUrl) {
+        // Use a default URL if not set
+        return "http://localhost:8000";
+    }
+
+    return serverUrl;
 }
 
 async function loadProjectSettings(filename: string, context: vscode.ExtensionContext) {

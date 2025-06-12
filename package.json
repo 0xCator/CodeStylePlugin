@@ -31,33 +31,33 @@
       {
         "command": "javacodeassistant.format",
         "title": "Format Java Code",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.analyze",
         "title": "Analyze Java code smells",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.refine",
         "title": "Refine Java code",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.exportSettings",
         "title": "Export settings to JSON file",
-        "category": "Java Code Assistant"
-      },
-      {
-        "command": "javacodeassistant.generateCompletion",
-        "title": "Generate completion",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       }
     ],
     "configuration": [
       {
         "title": "Miscellaneous",
         "properties": {
+          "javacodeassistant.serverUrl": {
+            "type": "string",
+            "default": "http://localhost:8000",
+            "description": "URL of the Java Code Assistant server"
+          },
           "javacodeassistant.braceStyle": {
             "type": "string",
             "enum": [
@@ -256,7 +256,7 @@
         {
           "id": "extensionTab",
           "title": "CodeGator",
-          "icon": "resources/javacodeassistant.svg"
+          "icon": "resources/codegator.svg"
         }
       ]
     },
@@ -265,7 +265,7 @@
         {
           "id": "customView",
           "name": "CodeGator",
-          "icon": "resources/javacodeassistant.svg"
+          "icon": "resources/codegator.svg"
         }
       ]
     },
