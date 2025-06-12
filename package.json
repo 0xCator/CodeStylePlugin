@@ -31,22 +31,22 @@
       {
         "command": "javacodeassistant.format",
         "title": "Format Java Code",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.analyze",
         "title": "Analyze Java code smells",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.refine",
         "title": "Refine Java code",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       },
       {
         "command": "javacodeassistant.exportSettings",
         "title": "Export settings to JSON file",
-        "category": "Java Code Assistant"
+        "category": "CodeGator"
       }
     ],
     "configuration": [
