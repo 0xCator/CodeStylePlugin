@@ -6,7 +6,7 @@ from collections import defaultdict
 
 class CodeSmellAnalyzer:
     def __init__(self):
-        MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
+        MODEL_PATH = "NexusrexDev/CodeGator-Smells"
         self.model = CodeSmell.modelrunner.ModelRunner(MODEL_PATH)
 
     def start_analysis(self, code, progress_callback=None):

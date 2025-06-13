@@ -7,8 +7,7 @@ logger = logging.getLogger(__name__)
 
 class CodeRefiner:
     def __init__(self):
-        MODEL_PATH = os.path.join(os.path.dirname(__file__), "Model")
-        assert os.path.exists(MODEL_PATH), f"Model path does not exist: {MODEL_PATH}"
+        MODEL_PATH = "NexusrexDev/CodeGator-Refinement"
         self.model = CodeRefinement.ModelRunner.ModelRunner(MODEL_PATH)
 
     def clean_code(self, code):
