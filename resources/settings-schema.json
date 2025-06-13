@@ -1,6 +1,10 @@
 {
   "type": "object",
   "properties": {
+    "serverUrl": {
+      "type": "string",
+      "default": "http://localhost:8080"
+    },
     "braceStyle": {
       "type": "string",
       "enum": ["break", "attach"],
@@ -120,6 +124,7 @@
     }
   },
   "required": [
+    "serverUrl",
     "braceStyle",
     "spaceAroundOperators",
     "maxLineLength",

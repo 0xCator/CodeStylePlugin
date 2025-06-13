@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from CodeStyle import CodeStyle
-from CodeSmell import CodeSmell
-from CodeRefinement import CodeRefinement
+from CodeStyle.CodeStyle import CodeStyleFormatter
+from CodeSmell.CodeSmell import CodeSmellAnalyzer
+from CodeRefinement.CodeRefinement import CodeRefiner
 from AutoComplete.AutoComplete import AutoComplete
 import asyncio
 import json
@@ -49,6 +49,9 @@ main_event_loop = None
 analysis_tasks: dict[str, bool] = {}
 
 autocomplete_instance = None
+codestyle_instance = None
+codesmell_instance = None
+coderefine_instance = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -56,6 +59,12 @@ async def startup_event():
     main_event_loop = asyncio.get_event_loop()
     global autocomplete_instance
     autocomplete_instance = AutoComplete()
+    global codestyle_instance
+    codestyle_instance = CodeStyleFormatter()
+    global codesmell_instance
+    codesmell_instance = CodeSmellAnalyzer()
+    global coderefine_instance
+    coderefine_instance = CodeRefiner()
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -81,7 +90,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 @app.post("/format")
 async def format_code(request: FormatRequest):
     try:
-        formatted_code, errors = CodeStyle.start_formatting(request.code, request.settings)
+        formatted_code, errors = codestyle_instance.start_formatting(request.code, request.settings)
         return {"formatted_code": formatted_code, "errors": errors}
     except Exception as e:
         logger.error(f"Format error: {e}")
@@ -116,7 +125,7 @@ async def analyze_smells(request: SmellRequest):
             
         logger.info(f"Starting analysis for client {request.websocket_id}")
         smells = await asyncio.to_thread(
-            CodeSmell.start_analysis,
+            codesmell_instance.start_analysis,
             request.code,
             progress_callback
         )
@@ -132,7 +141,7 @@ async def analyze_smells(request: SmellRequest):
 @app.post("/refine")
 async def refine_code(request: RefinementRequest):
     try:
-        refined_code = CodeRefinement.start_refinement(request.code, request.prompt)
+        refined_code = coderefine_instance.start_refinement(request.code, request.prompt)
         logger.info(f"Refined code: {refined_code}")
         return {"refined_code": refined_code}
     except Exception as e:
